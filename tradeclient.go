@@ -139,7 +139,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 
 				if(OSRs[i].count  == len(OSRs[i].workingOrders)){
 					// Receive all working orders
-					fmt.Printf("Receve all working orders : %d for account %s",len(OSRs[i].workingOrders), OSRs[i].account)
+					fmt.Printf("Receve all working orders : %d for account %s \n",len(OSRs[i].workingOrders), OSRs[i].account)
 					OSRs = append(OSRs[:i], OSRs[i+1:]...)
 				}
 			}
