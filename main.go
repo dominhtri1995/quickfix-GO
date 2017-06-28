@@ -18,7 +18,7 @@ Loop:
 
 		switch action {
 		case "1":
-			QueryPAndL(xid.New().String(),"TTORDFA222222")
+			QueryPAndLSOD(xid.New().String(),"TTORDFA222222")
 		case "2":
 			QueryNewOrderSingle(xid.New().String(),"venustech1","1","2","500","4570","BZ","CME","201709")
 		case "3":

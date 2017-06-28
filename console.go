@@ -1,7 +1,6 @@
 package main
 
 import (
-"fmt"
 "time"
 
 "github.com/quickfixgo/quickfix"
@@ -9,13 +8,10 @@ import (
 "github.com/quickfixgo/quickfix/field"
 "github.com/shopspring/decimal"
 
-
-// "strings"
-
 fix42nos "github.com/quickfixgo/quickfix/fix42/newordersingle"
 )
 
-func QueryPAndL(id string,accountGroup string) (err error){
+func QueryPAndLSOD(id string,accountGroup string) (err error){
 	//UANS
 	var u UAN
 	u.id = id

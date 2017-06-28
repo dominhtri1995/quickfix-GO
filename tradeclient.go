@@ -11,42 +11,28 @@ import (
 "github.com/quickfixgo/quickfix/enum"
 )
 
-//TradeClient implements the quickfix.Application interface
-type TradeClient struct {
-}
-
-//OnCreate implemented as part of Application interface
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
 	return
 }
-
-//OnLogon implemented as part of Application interface
 func (e TradeClient) OnLogon(sessionID quickfix.SessionID) {
 	fmt.Printf("Session created !! Ready to rock and roll\n")
 	return
 }
-
-//OnLogout implemented as part of Application interface
 func (e TradeClient) OnLogout(sessionID quickfix.SessionID) {
 	fmt.Printf("logged out!!!!!! It's Obama's fault !!! \n")
 	return
 }
-
-//FromAdmin implemented as part of Application interface
 func (e TradeClient) FromAdmin(msg quickfix.Message, sessionID quickfix.SessionID) (reject quickfix.MessageRejectError) {
 	// msg.Build()
 	// fmt.Printf("Incoming %s\n", &msg)
 	return
 }
-
-//ToAdmin implemented as part of Application interface
 func (e TradeClient) ToAdmin(msg quickfix.Message, sessionID quickfix.SessionID) {
 
 	messageType,err := msg.Header.GetString(quickfix.Tag(35))
 	if( err !=nil){
 	}
 	if(messageType == "A"){
-		// fmt.Printf(messageType)
 		msg.Header.SetString(quickfix.Tag(96),"12345678")
 		msg.Header.SetInt(quickfix.Tag(95),8)
 		t34,err  := msg.Header.GetInt(quickfix.Tag(34))
@@ -54,25 +40,13 @@ func (e TradeClient) ToAdmin(msg quickfix.Message, sessionID quickfix.SessionID)
 			msg.Header.SetBool(quickfix.Tag(141),true)  //Set reset sequence
 		}
 	}
-
 	return
 }
 
-///ToApp implemented as part of Application interface
 func (e TradeClient) ToApp(msg quickfix.Message, sessionID quickfix.SessionID) (err error) {
 	msg.Build()
 	fmt.Printf("Sending %s\n", &msg)
-	messageType,err := msg.Header.GetString(quickfix.Tag(35))
-	if( err !=nil){
-		return
-	}
-	switch{
-	case messageType == "UAN":
-
-	}
-	
 	return
-
 }
 
 //FromApp implemented as part of Application interface. This is the callback for all Application level messages from the counter party.
@@ -235,6 +209,8 @@ func StartQuickFix() {
 	
 }
 
+type TradeClient struct {
+}
 type UAN struct{
 	id string
 	accountGroup string
