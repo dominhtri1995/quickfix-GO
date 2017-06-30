@@ -20,10 +20,12 @@ Loop:
 		case "1":
 			QueryPAndLSOD(xid.New().String(),"TTORDFA222222")
 		case "2":
-			QueryNewOrderSingle(xid.New().String(),"venustech1","1","2","500","4570","BZ","CME","201709")
+			QueryNewOrderSingle(xid.New().String(),"venustech","1","2","500","4570","BZ","CME","201709")
 		case "3":
 			QueryWorkingOrder("venustech")
 		case "4":
+			QueryMarketDataRequest(xid.New().String(),"0",0,"2","BZ","CME","201709")
+		case "9":
 			break Loop
 
 		default:

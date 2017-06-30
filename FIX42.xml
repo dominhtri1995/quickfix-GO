@@ -97,9 +97,9 @@
           <field name="DeliveryTerm" required="N" />
           <group name="NoMDEntries" required="Y">
               <field name="MDEntryType" required="Y" />
-              <field name="MDEntryPx" required="N" />                
-              <field name="MDEntrySize" required="N" />                
               <field name="MDEntryPositionNo" required="N" />
+              <field name="MDEntryPx" required="N" />
+              <field name="MDEntrySize" required="N" />                
               <field name="SecondaryOrderID" required="N" />
               <field name="MDEntryState" required="N" />
               <field name="AggressorSide" required="N" />

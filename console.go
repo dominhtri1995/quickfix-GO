@@ -2,6 +2,7 @@ package main
 
 import (
 "time"
+"strconv"
 
 "github.com/quickfixgo/quickfix"
 "github.com/quickfixgo/quickfix/enum"
@@ -9,6 +10,7 @@ import (
 "github.com/shopspring/decimal"
 
 fix42nos "github.com/quickfixgo/quickfix/fix42/newordersingle"
+fix42mdq "github.com/quickfixgo/quickfix/fix42/marketdatarequest"
 )
 
 func QueryPAndLSOD(id string,accountGroup string) (err error){
@@ -24,11 +26,26 @@ func QueryPAndLSOD(id string,accountGroup string) (err error){
 	message.Body.SetString(quickfix.Tag(16710),id)  // uniqueID
 	message.Body.SetInt(quickfix.Tag(16724),4)
 	message.Body.SetString(quickfix.Tag(263),"1")
-	
 	SendMessage(message)
 
 	return 
 }
+func QueryPAndLPos(id string,account string) (err error){
+	//UANS
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header)
+	message.Header.SetString(quickfix.Tag(35),"UAN")
+	message.Body.SetString(quickfix.Tag(16710),id)  // uniqueID
+	message.Body.SetInt(quickfix.Tag(16724),0)
+	message.Body.SetString(quickfix.Tag(263),"1")
+	message.Body.SetString(quickfix.Tag(1),account)
+
+	SendMessage(message)
+
+	return
+}
+
 func QueryNewOrderSingle(id string, account string,side enum.Side,ordtype string, quantity string, pri string, symbol string, exchange string, maturity string){
 	var ordType field.OrdTypeField
 	ordType.FIXString = quickfix.FIXString(ordtype)
@@ -104,6 +121,37 @@ func QueryOrderCancelReplace(orderID string,newid string, account string,side en
 	SendMessage(message)
 
 }
+func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType,symbol string, exchange string, maturity string){
+	message := quickfix.NewMessage()
+	queryHeaderPrice(message.Header)
+	message.Header.Set(field.NewMsgType("V"))
+	message.Body.Set(field.NewMDReqID(id))
+	message.Body.Set(field.NewSubscriptionRequestType(requestType))
+	message.Body.Set(field.NewMarketDepth(marketDepth))
+	message.Body.Set(field.NewAggregatedBook(true))  //always true
+	message.Body.Set(field.NewNoMDEntryTypes(1)) //number of price types
+	message.Body.Set(field.NewMDEntryType(priceType))   // price type
+	//message.Body.Set(field.NewNoRelatedSym(1))
+
+	////INStrument Block
+	//message.Body.Set(field.NewSymbol(symbol))
+	//message.Body.Set(field.NewSecurityExchange(exchange))
+	//message.Body.Set(field.NewSecurityType(enum.SecurityType_FUTURE) ) ///default to future
+	//message.Body.Set(field.NewMaturityMonthYear(maturity))
+	mdr := fix42mdq.FromMessage(message)
+
+	group:= fix42mdq.NewNoRelatedSymRepeatingGroup()
+	newSym:= group.Add()
+	newSym.SetSymbol(symbol)
+	newSym.SetSecurityExchange(exchange)
+	newSym.SetSecurityType(enum.SecurityType_FUTURE)
+	m ,_ :=strconv.Atoi(maturity)
+	newSym.SetMaturityDay(m)
+
+	mdr.SetNoRelatedSym(group)
+
+	SendMessage(mdr.ToMessage())
+}
 
 func SendMessage(message quickfix.Message){
 	var m quickfix.Messagable
@@ -118,6 +166,12 @@ type header interface {
 func queryHeader(h header) {
 	h.Set(field.NewSenderCompID("VENUSTECH"))
 	h.Set(field.NewTargetCompID("TTDEV18O"))
+	h.Set(field.NewBeginString("FIX.4.2"))
+}
+
+func queryHeaderPrice(h header) {
+	h.Set(field.NewSenderCompID("VENUSTECH"))
+	h.Set(field.NewTargetCompID("TTDEV18P"))
 	h.Set(field.NewBeginString("FIX.4.2"))
 }
 
