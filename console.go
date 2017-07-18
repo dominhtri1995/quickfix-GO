@@ -147,7 +147,7 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	var md MarketDataReq
 	md.id =id
 	md.channel = c
-	md.priceType = string(priceType)
+	MarketDataRequests = append(MarketDataRequests,md)
 
 	message := quickfix.NewMessage()
 	queryHeaderPrice(message.Header)

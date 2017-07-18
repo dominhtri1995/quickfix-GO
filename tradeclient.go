@@ -156,7 +156,6 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 						order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
 					OSRs[i].workingOrders = append(OSRs[i].workingOrders, order)
-					break
 				}
 
 				if (OSRs[i].count == len(OSRs[i].workingOrders)) {
