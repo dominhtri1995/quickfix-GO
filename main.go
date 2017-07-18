@@ -47,7 +47,7 @@ Loop:
 			}
 
 		case "4":
-			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT")
+			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "5", "BZ", "CME", "201709", "FUT")
 			fmt.Printf("Price :%s \n", mdr.price)
 
 		case "5":

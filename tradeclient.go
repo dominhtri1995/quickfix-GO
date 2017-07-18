@@ -232,16 +232,20 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				md.price, err = msg.Body.GetString(quickfix.Tag(270))
 				if ( err != nil) {
 					md.price = "0" //Price not available
-				}
-				md.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-				md.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-				productType, _ := msg.Body.GetString(quickfix.Tag(167))
-				if (productType == "FUT") {
-					md.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+					md.status= "rejected"
+					md.reason = "price not available"
+				}else{
+					md.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+					md.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+					productType, _ := msg.Body.GetString(quickfix.Tag(167))
+					if (productType == "FUT") {
+						md.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+					}
+
+					md.priceType, _ = msg.Body.GetString(quickfix.Tag(269))
+					md.status = "ok"
 				}
 
-				md.priceType, _ = msg.Body.GetString(quickfix.Tag(269))
-				md.status = "ok"
 				md.channel <- md
 				MarketDataRequests = append(MarketDataRequests[:i], MarketDataRequests[i+1:]...)
 				break
@@ -314,7 +318,7 @@ func StartQuickFix() {
  */
 func TT_PAndLSOD(id string, accountGroup string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(xid.New().String(), "TTORDFA222222", c)
+	QueryPAndLSOD(xid.New().String(), accountGroup, c)
 
 	select {
 	case uan= <-c:
@@ -326,9 +330,9 @@ func TT_PAndLSOD(id string, accountGroup string) (uan UAN) {
 	}
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side enum.Side, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side enum.Side, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT", c)
+	QueryNewOrderSingle(xid.New().String(), account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -341,7 +345,7 @@ func TT_NewOrderSingle(id string, account string, side enum.Side, ordtype string
 
 func TT_WorkingOrder(account string) (wo OrderStatusReq) {
 	c := make(chan OrderStatusReq)
-	QueryWorkingOrder("venustech", c)
+	QueryWorkingOrder(account, c)
 	select {
 	case wo = <-c:
 		return wo
@@ -365,7 +369,7 @@ func TT_OrderCancel(id string, orderID string) (ordStatus OrderConfirmation) {
 }
 func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, xid.New().String(), "venustech", "1", "2", "250", "4440", "BZ", "CME", "201709", "FUT", c) // Replace the first working order
+	QueryOrderCancelReplace(orderID, xid.New().String(), account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c) // Replace the first working order
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -378,7 +382,7 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side en
 
 func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType enum.SecurityType) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
-	QueryMarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT", c)
+	QueryMarketDataRequest(xid.New().String(), requestType, marketDepth, priceType, symbol, exchange, maturity, productType, c)
 	select {
 	case mdr = <-c:
 		return mdr
