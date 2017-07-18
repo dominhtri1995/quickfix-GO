@@ -1,13 +1,14 @@
-package main  
-import (
-"fmt"
-"os"
-"bufio"
-"github.com/rs/xid"
+package main
 
+import (
+	"fmt"
+	"os"
+	"bufio"
+	"github.com/rs/xid"
 )
+
 func main() {
-	
+
 	StartQuickFix()
 Loop:
 	for {
@@ -17,51 +18,38 @@ Loop:
 		}
 		switch action {
 		case "1":
-			c := make(chan UAN)
-			QueryPAndLSOD(xid.New().String(),"TTORDFA222222",c)
-
-			uan := <-c
-			fmt.Printf("wth")
-			for _, uap := range uan.reports{
-				fmt.Printf("%s",uap.product)
+			uan := TT_PAndLSOD(xid.New().String(), "TTORDFA222222")
+			for _, uap := range uan.reports {
+				fmt.Printf("%s \n", uap.product)
 			}
 		case "2":
-			c := make (chan OrderConfirmation)
-			QueryNewOrderSingle(xid.New().String(),"venustech","1","2","500","4570","BZ","CME","201709","FUT",c)
-			ordStatus := <-c
-			fmt.Printf("Status: %s",ordStatus.status)
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT")
+			fmt.Printf("Status: %s \n", ordStatus.status)
 		case "3":
-			c := make (chan OrderStatusReq)
-			QueryWorkingOrder("venustech",c)
-			wo := <- c
-			for _, order := range wo.workingOrders{
-				fmt.Printf("%s",order.symbol)
+			wo := TT_WorkingOrder("venustech")
+			for _, order := range wo.workingOrders {
+				fmt.Printf("%s \n", order.symbol)
 			}
 		case "4":
-			c := make (chan MarketDataReq)
-			QueryMarketDataRequest(xid.New().String(),"0",0,"2","BZ","CME","201709","FUT",c)
-			mdr := <- c
-			fmt.Printf("Price :%s",mdr.price)
+			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT")
+			fmt.Printf("Price :%s \n", mdr.price)
 
 		case "5":
-			c := make (chan OrderStatusReq)
-			QueryWorkingOrder("venustech",c) // Get all working order
-			wo := <- c
+			wo := TT_WorkingOrder("venustech") // get all working order
 
-			c1 := make (chan OrderConfirmation)
-			QueryOrderCancel(xid.New().String(), wo.workingOrders[0].orderID, c1) // Cancel the first working order
-			ordStatus := <-c1
-			fmt.Printf("Status: %s",ordStatus.status)
-
+			ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[0].orderID) // Cancel the first working order
+			fmt.Printf("Status: %s", ordStatus.status)
 		case "6":
-			c := make (chan OrderStatusReq)
-			QueryWorkingOrder("venustech",c) // Get all working order
-			wo := <- c
-
-			c1 := make (chan OrderConfirmation)
-			QueryOrderCancelReplace(wo.workingOrders[0].orderID,xid.New().String(),"venustech","1","2","250","4440","BZ","CME","201709","FUT", c1) // Replace the first working order
-			ordStatus := <-c1
-			fmt.Printf("Status: %s",ordStatus.status)
+			wo := TT_WorkingOrder("venustech") // get all working order
+			for i := range wo.workingOrders{
+				ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[i].orderID) // Cancel the first working order
+				fmt.Printf("Status: %s \n", ordStatus.status)
+			}
+		case "7":
+			wo := TT_WorkingOrder("venustech") // get all working order
+			// Replace/Edit the first working order
+			ordStatus := TT_OrderCancelReplace(wo.workingOrders[0].orderID, xid.New().String(), "venustech", "1", "2", "250", "4440", "BZ", "CME", "201709", "FUT")
+			fmt.Printf("Status: %s \n", ordStatus.status)
 
 		case "9":
 			break Loop
@@ -83,7 +71,8 @@ func QueryAction() (string, error) {
 	fmt.Println("3) Get Working Order")
 	fmt.Println("4) Market Data")
 	fmt.Println("5) Cancel First working order")
-	fmt.Println("6) Replace First working order")
+	fmt.Println("6) Cancel All working order")
+	fmt.Println("7) Replace First working order")
 	fmt.Println("9) Quit")
 	fmt.Print("Action: ")
 	scanner := bufio.NewScanner(os.Stdin)

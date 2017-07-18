@@ -330,20 +330,20 @@ func TT_WorkingOrder(account string) OrderStatusReq{
 	wo := <- c
 	return wo
 }
-func TT_CancelOrder(id string, orderID string) OrderConfirmation{
+func TT_OrderCancel(id string, orderID string) OrderConfirmation{
 	c := make (chan OrderConfirmation)
 	QueryOrderCancel(xid.New().String(), orderID, c) // Cancel the first working order
 	ordStatus := <-c
 	return ordStatus
 }
-func TT_CancelReplaceOrder(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string,productType enum.SecurityType) OrderConfirmation{
+func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string,productType enum.SecurityType) OrderConfirmation{
 	c := make (chan OrderConfirmation)
 	QueryOrderCancelReplace(orderID,xid.New().String(),"venustech","1","2","250","4440","BZ","CME","201709","FUT", c) // Replace the first working order
 	ordStatus := <-c
 	return ordStatus
 }
 
-func TT_MarketData(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType enum.SecurityType) MarketDataReq {
+func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType enum.SecurityType) MarketDataReq {
 	c := make (chan MarketDataReq)
 	QueryMarketDataRequest(xid.New().String(),"0",0,"2","BZ","CME","201709","FUT",c)
 	mdr := <- c
