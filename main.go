@@ -24,7 +24,14 @@ Loop:
 			}
 		case "2":
 			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT")
-			fmt.Printf("Status: %s \n", ordStatus.status)
+			if(ordStatus.status == "ok"){
+				fmt.Printf("Order Placed Successfully \n")
+			}else if(ordStatus.status == "rejected"){
+				fmt.Printf("Order Rejected \n")
+				if(ordStatus.reason != ""){
+					fmt.Printf("Reason: %s",ordStatus.reason)
+				}
+			}
 		case "3":
 			wo := TT_WorkingOrder("venustech")
 			for _, order := range wo.workingOrders {
@@ -38,7 +45,14 @@ Loop:
 			wo := TT_WorkingOrder("venustech") // get all working order
 
 			ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[0].orderID) // Cancel the first working order
-			fmt.Printf("Status: %s", ordStatus.status)
+			if(ordStatus.status == "ok"){
+				fmt.Printf("Order Cancelled Successfully \n")
+			}else if(ordStatus.status == "rejected"){
+				fmt.Printf("Order Cancelled Rejected \n")
+				if(ordStatus.reason != ""){
+					fmt.Printf("Reason: %s",ordStatus.reason)
+				}
+			}
 		case "6":
 			wo := TT_WorkingOrder("venustech") // get all working order
 			for i := range wo.workingOrders{
@@ -49,7 +63,14 @@ Loop:
 			wo := TT_WorkingOrder("venustech") // get all working order
 			// Replace/Edit the first working order
 			ordStatus := TT_OrderCancelReplace(wo.workingOrders[0].orderID, xid.New().String(), "venustech", "1", "2", "250", "4440", "BZ", "CME", "201709", "FUT")
-			fmt.Printf("Status: %s \n", ordStatus.status)
+			if(ordStatus.status == "ok"){
+				fmt.Printf("Order Replaced Successfully \n")
+			}else if(ordStatus.status == "rejected"){
+				fmt.Printf("Order Replaced Rejected \n")
+				if(ordStatus.reason != ""){
+					fmt.Printf("Reason: %s",ordStatus.reason)
+				}
+			}
 
 		case "9":
 			break Loop
