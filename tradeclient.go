@@ -10,6 +10,7 @@ import (
 	"github.com/quickfixgo/quickfix"
 	"github.com/quickfixgo/quickfix/enum"
 	"github.com/rs/xid"
+	"time"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -304,6 +305,7 @@ func StartQuickFix() {
 	initiator.Start()
 
 }
+
 // Wrapper fro Query function in console.go, using channel to wait for all message come through.
 /*
 /* Use these function to avoid using channel in main code
@@ -312,44 +314,88 @@ func StartQuickFix() {
  */
 func TT_PAndLSOD(id string, accountGroup string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(xid.New().String(),"TTORDFA222222",c)
+	QueryPAndLSOD(xid.New().String(), "TTORDFA222222", c)
 
-	uan = <-c
+	select {
+	case uan= <-c:
+		return uan
+	case <-getTimeOutChan():
+		var uan UAN
+		uan.status = "rejected"
+		uan.reason = "time out"
+	}
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side enum.Side, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) OrderConfirmation{
-	c := make (chan OrderConfirmation)
-	QueryNewOrderSingle(xid.New().String(),"venustech","1","2","500","4570","BZ","CME","201709","FUT",c)
-	ordStatus := <-c
+func TT_NewOrderSingle(id string, account string, side enum.Side, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
+	c := make(chan OrderConfirmation)
+	QueryNewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT", c)
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.status = "rejected"
+		ordStatus.reason = "time out"
+	}
 	return ordStatus
 }
 
-func TT_WorkingOrder(account string) OrderStatusReq{
-	c := make (chan OrderStatusReq)
-	QueryWorkingOrder("venustech",c)
-	wo := <- c
+func TT_WorkingOrder(account string) (wo OrderStatusReq) {
+	c := make(chan OrderStatusReq)
+	QueryWorkingOrder("venustech", c)
+	select {
+	case wo = <-c:
+		return wo
+	case <-getTimeOutChan():
+		wo.status = "rejected"
+		wo.reason = "time out"
+	}
 	return wo
 }
-func TT_OrderCancel(id string, orderID string) OrderConfirmation{
-	c := make (chan OrderConfirmation)
+func TT_OrderCancel(id string, orderID string) (ordStatus OrderConfirmation) {
+	c := make(chan OrderConfirmation)
 	QueryOrderCancel(xid.New().String(), orderID, c) // Cancel the first working order
-	ordStatus := <-c
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.status = "rejected"
+		ordStatus.reason = "time out"
+	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string,productType enum.SecurityType) OrderConfirmation{
-	c := make (chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID,xid.New().String(),"venustech","1","2","250","4440","BZ","CME","201709","FUT", c) // Replace the first working order
-	ordStatus := <-c
+func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
+	c := make(chan OrderConfirmation)
+	QueryOrderCancelReplace(orderID, xid.New().String(), "venustech", "1", "2", "250", "4440", "BZ", "CME", "201709", "FUT", c) // Replace the first working order
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.status = "rejected"
+		ordStatus.reason = "time out"
+	}
 	return ordStatus
 }
 
-func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType enum.SecurityType) MarketDataReq {
-	c := make (chan MarketDataReq)
-	QueryMarketDataRequest(xid.New().String(),"0",0,"2","BZ","CME","201709","FUT",c)
-	mdr := <- c
+func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType enum.SecurityType) (mdr MarketDataReq) {
+	c := make(chan MarketDataReq)
+	QueryMarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT", c)
+	select {
+	case mdr = <-c:
+		return mdr
+	case <-getTimeOutChan():
+		mdr.status = "rejected"
+		mdr.reason = "time out"
+	}
 	return mdr
 }
-
+func getTimeOutChan() chan bool {
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(5 * time.Second)
+		timeout <- true
+	}()
+	return timeout
+}
 
 type TradeClient struct {
 }
@@ -359,6 +405,8 @@ type UAN struct {
 	count        int
 	channel      chan UAN
 	reports      []UAPreport
+	status       string
+	reason       string
 }
 type UAPreport struct {
 	id              string
@@ -375,6 +423,8 @@ type OrderStatusReq struct {
 	count         int
 	channel       chan OrderStatusReq
 	workingOrders []WorkingOrder
+	status        string
+	reason        string
 }
 type WorkingOrder struct {
 	orderID         string // Used to cancel order or request order status later
@@ -403,5 +453,5 @@ type MarketDataReq struct {
 	exchange        string
 	channel         chan MarketDataReq
 	status          string
-	reason 	        string
+	reason          string
 }

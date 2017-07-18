@@ -19,6 +19,10 @@ Loop:
 		switch action {
 		case "1":
 			uan := TT_PAndLSOD(xid.New().String(), "TTORDFA222222")
+			if(uan.status == "rejected"){
+				fmt.Printf("Error when getting UAN: %s",uan.reason)
+				continue
+			}
 			for _, uap := range uan.reports {
 				fmt.Printf("%s \n", uap.product)
 			}
@@ -34,9 +38,14 @@ Loop:
 			}
 		case "3":
 			wo := TT_WorkingOrder("venustech")
-			for _, order := range wo.workingOrders {
-				fmt.Printf("%s \n", order.symbol)
+			if(wo.status != "rejected"){
+				for _, order := range wo.workingOrders {
+					fmt.Printf("%s \n", order.symbol)
+				}
+			}else {
+				fmt.Printf("Error when getting Working Orders: %s",wo.reason)
 			}
+
 		case "4":
 			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT")
 			fmt.Printf("Price :%s \n", mdr.price)
