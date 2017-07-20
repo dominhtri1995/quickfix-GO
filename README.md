@@ -16,5 +16,18 @@ $ ./tradeclient
 
 Wait for all the session get created and sequence number is reset. Read main.go files for examples of functionalities available through FIX. 
 
+Usage:
+```
+ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT","VENUSTECH3")
+			if(ordStatus.status == "ok"){
+				fmt.Printf("Order Placed Successfully \n")
+			}else if(ordStatus.status == "rejected"){
+				fmt.Printf("Order Rejected \n")
+				if(ordStatus.reason != ""){
+					fmt.Printf("Reason: %s",ordStatus.reason)
+				}
+			}
+```
+
 Good luck!
 
