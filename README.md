@@ -1,6 +1,6 @@
-# quickfix-GO 
+# quickfix-GO [![Awesome](https://cdn.rawgit.com/sindresorhus/awesome/d7305f38d29fed78fa85652e3a63e154dd8e8829/media/badge.svg)]
 
-- This is QuickFix Code for TT FIX Adapter in Go
+- This is QuickFix Code for TT FIX Adapter in Go by TriDo
 - Documentation can be found here:
 
 https://www.tradingtechnologies.com/help/fix-adapter-reference/introduction/whats-new-in-fix-adapter-717x/
