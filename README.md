@@ -1,6 +1,6 @@
 # quickfix-GO 
 
-- This is QuickFix Code for TT FIX Adapter in Go [create an anchor](#anchors-in-markdown)
+- This is QuickFix Code for TT FIX Adapter in Go
 - Documentation can be found here:
 
 https://www.tradingtechnologies.com/help/fix-adapter-reference/introduction/whats-new-in-fix-adapter-717x/
