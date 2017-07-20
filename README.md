@@ -14,9 +14,9 @@ $ go build
 $ ./tradeclient
 ```
 
-Wait for all the session get created and sequence number is reset. Read main.go files for examples of functionalities available through FIX. 
+Wait for all the session get created and sequence number is reset. Read [main.go](/main.go) files for examples of functionalities available through FIX.
 
-- Usage:
+- **Usage**:
 ```
 ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT","VENUSTECH3")
 			if(ordStatus.status == "ok"){
@@ -28,9 +28,9 @@ ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500",
 				}
 			}
 ```
-- Notes: 
+- **Notes**: 
   1. This TT code can run independently from Mistro and it is highly recommended to keep it that way. The independence of TT Adapter from mistro makes developers's life easier when debugging or troubleshooting order related issue or make changes to TT Adapter
-  2. TT Adapter code needs to pass TT API conformance test before used in production hence any small changes to TT code require going through the conformance test again which IS A PAIN IN THE ASS ! That's why keeping it seperate from mistro allows us to make changes in mistro features without worrying about crashing TT Server.
+  2. TT Adapter code needs to pass TT API conformance test before used in production hence any small changes to TT code require going through the conformance test again which **IS A PAIN IN THE ASS** ! That's why keeping it seperate from mistro allows us to make changes in mistro features without worrying about crashing TT Server.
 
 Good luck!
 
