@@ -55,7 +55,7 @@ func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err err
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, sender string,c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string,c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.id = id
@@ -74,6 +74,10 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	productTypeField.FIXString = quickfix.FIXString(productType)
 	order.Set(productTypeField)
 
+	var timeInForceField field.TimeInForceField
+	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
+	order.Set(timeInForceField)  //0 for day and 1 for GTC
+
 	qty, _ := decimal.NewFromString(quantity)
 	order.SetOrderQty(qty, 2)
 	if(ordtype != "1") {
@@ -85,7 +89,8 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	if(productType =="FUT"){
 		order.SetMaturityMonthYear(maturity)
 	}
-	order.Set(field.NewTimeInForce("0")) /// default to 0
+
+
 	order.SetAccount(account)
 
 	message := order.ToMessage()
@@ -124,7 +129,7 @@ func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfi
 	SendMessage(message)
 }
 
-func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string,productType string,sender string, c chan OrderConfirmation) {
+func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string,productType string, timeInForce string,sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.id = newid
@@ -149,8 +154,11 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 
 	var productTypeField field.SecurityTypeField
 	productTypeField.FIXString = quickfix.FIXString(productType)
-	message.Body.Set(productTypeField)
+	message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
 
+	var timeInForceField field.TimeInForceField
+	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
+	message.Body.Set(timeInForceField)  //0 for day and 1 for GTC
 
 	qty, _ := decimal.NewFromString(quantity)
 	message.Body.Set(field.NewOrderQty(qty, 2))
@@ -164,9 +172,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 		message.Body.Set(field.NewMaturityMonthYear(maturity))
 	}
 
-	message.Body.Set(field.NewTimeInForce("0")) /// default to 0
 	message.Body.Set(field.NewAccount(account))
-
 	SendMessage(message)
 
 }

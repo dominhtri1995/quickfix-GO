@@ -149,6 +149,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.exchange,_ = msg.Body.GetString(quickfix.Tag(207))
 					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
 					order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
+					order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
 					if order.sideNum == "1" {
 						order.side = "buy"
 					} else {
@@ -354,9 +355,9 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,sender, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,timeInForce,sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -381,7 +382,7 @@ func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
 }
 func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancel(id, orderID, sender,c) // Cancel the first working order
+	QueryOrderCancel(id, orderID, sender,c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -391,9 +392,9 @@ func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderCon
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string,sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string,timeInForce string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, sender,c) // Replace the first working order
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,timeInForce, sender,c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -468,6 +469,7 @@ type WorkingOrder struct {
 	side            string
 	sideNum			string
 	ordType 		string
+	timeInForce 	string
 }
 
 type OrderConfirmation struct {

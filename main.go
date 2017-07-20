@@ -28,7 +28,7 @@ Loop:
 				fmt.Printf("%s \n", uap.product)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT","VENUSTECH3")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT","1","VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Placed Successfully \n")
 			}else if(ordStatus.status == "rejected"){
@@ -73,8 +73,8 @@ Loop:
 			wo := TT_WorkingOrder("venustech","VENUSTECH3") // get all working order
 			// Replace/Edit the first working order
 			order := wo.workingOrders[0]
-			//Change quantity
-			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, order.sideNum, order.ordType, "962", order.price, order.symbol, order.exchange, order.productMaturity, order.productType,"VENUSTECH3")
+			//Change quantity of that working order to 962
+			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, order.sideNum, order.ordType, "962", order.price, order.symbol, order.exchange, order.productMaturity, order.productType,order.timeInForce,"VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Replaced Successfully \n")
 			}else if(ordStatus.status == "rejected"){
