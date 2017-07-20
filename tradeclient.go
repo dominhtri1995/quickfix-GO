@@ -325,11 +325,11 @@ func StartQuickFix() {
  */
 func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(id, accountGroup, c)
+	QueryPAndLSOD(id, accountGroup,sender, c)
 
 	var uan1 UAN
 	c1 := make (chan UAN)
-	QueryPAndLPos(xid.New().String(),account,c1)
+	QueryPAndLPos(xid.New().String(),account,sender,c1)
 
 	select {
 	case uan = <-c:
@@ -356,7 +356,7 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 }
 func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -369,7 +369,7 @@ func TT_NewOrderSingle(id string, account string, side string, ordType string, q
 
 func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
 	c := make(chan OrderStatusReq)
-	QueryWorkingOrder(account, c)
+	QueryWorkingOrder(account,sender, c)
 	select {
 	case wo = <-c:
 		return wo
@@ -381,7 +381,7 @@ func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
 }
 func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancel(id, orderID, c) // Cancel the first working order
+	QueryOrderCancel(id, orderID, sender,c) // Cancel the first working order
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -393,7 +393,7 @@ func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderCon
 }
 func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c) // Replace the first working order
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, sender,c) // Replace the first working order
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -406,7 +406,7 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side st
 
 func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string,sender string) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
-	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType, c)
+	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType,sender, c)
 	select {
 	case mdr = <-c:
 		return mdr

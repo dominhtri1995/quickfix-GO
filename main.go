@@ -23,7 +23,7 @@ Loop:
 				fmt.Printf("Error when getting UAN: %s",uan.reason)
 				continue
 			}
-			fmt.Printf("We have totally %d position for account %s and accountgroup %s \n",len(uan.reports),uan.account,uan.accountGroup)
+			fmt.Printf("We have %d position in total for account %s and accountgroup %s \n",len(uan.reports),uan.account,uan.accountGroup)
 			for _, uap := range uan.reports {
 				fmt.Printf("%s \n", uap.product)
 			}
@@ -74,7 +74,6 @@ Loop:
 			// Replace/Edit the first working order
 			order := wo.workingOrders[0]
 			//Change quantity
-			fmt.Printf("Order type nè %s",order.ordType)
 			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, order.sideNum, order.ordType, "962", order.price, order.symbol, order.exchange, order.productMaturity, order.productType,"VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Replaced Successfully \n")
