@@ -147,8 +147,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.ordStatus, _ = msg.Body.GetString(quickfix.Tag(39))
 					order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 					order.exchange,_ = msg.Body.GetString(quickfix.Tag(207))
-					order.side, _ = msg.Body.GetString(quickfix.Tag(54))
 					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+					order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
 					if order.sideNum == "1" {
 						order.side = "buy"
 					} else {
@@ -164,6 +164,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				if (OSRs[i].count == len(OSRs[i].workingOrders)) {
 					// Receive all working orders
 					fmt.Printf("Receve all working orders : %d for account %s \n", len(OSRs[i].workingOrders), OSRs[i].account)
+					OSRs[i].status ="ok"
 					OSRs[i].channel <- OSRs[i]
 					OSRs = append(OSRs[:i], OSRs[i+1:]...)
 					break
@@ -201,6 +202,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					uap.quantity = string(q * (-1))
 				}
 				uap.accountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
+				uap.account , _ = msg.Body.GetString(quickfix.Tag(1))
 				// fmt.Println(uap.accountGroup)
 				uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
 				uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
@@ -211,9 +213,13 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				UANs[i].reports = append(UANs[i].reports, uap)
 
 				//UAN Complete
+				posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
 				if (len(UANs[i].reports) == UANs[i].count) {
 					for j := 0; j < len(UANs[i].reports); j++ {
-						if UANs[i].accountGroup != UANs[i].reports[j].accountGroup {
+						if posReqType =="4" && UANs[i].accountGroup != UANs[i].reports[j].accountGroup {
+							UANs[i].reports = append(UANs[i].reports[:j], UANs[i].reports[j+1:]...)
+							j--
+						}else if posReqType =="0" && UANs[i].account != UANs[i].reports[j].account{
 							UANs[i].reports = append(UANs[i].reports[:j], UANs[i].reports[j+1:]...)
 							j--
 						}
@@ -321,20 +327,34 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 	c := make(chan UAN)
 	QueryPAndLSOD(id, accountGroup, c)
 
-	intradayID := xid.New().String()
+	var uan1 UAN
 	c1 := make (chan UAN)
-	QueryPAndLPos(intradayID,account,c1)
+	QueryPAndLPos(xid.New().String(),account,c1)
+
 	select {
-	case uan= <-c:
-		return uan
+	case uan = <-c:
+
 	case <-getTimeOutChan():
 		var uan UAN
 		uan.status = "rejected"
 		uan.reason = "time out"
 	}
+	select {
+	case uan1 = <-c1:
+		if(uan.status !="rejected"){
+			uan.reports= append(uan.reports, uan1.reports[0:]...)
+			uan.count = len(uan.reports)
+			uan.account = uan1.account
+		}
+	case <-getTimeOutChan():
+		var uan UAN
+		uan.status = "rejected"
+		uan.reason = "time out"
+	}
+
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side enum.Side, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
 	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c)
 	select {
@@ -371,7 +391,7 @@ func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderCon
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType,sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
 	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c) // Replace the first working order
 	select {
@@ -384,7 +404,7 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side en
 	return ordStatus
 }
 
-func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType enum.SecurityType,sender string) (mdr MarketDataReq) {
+func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string,sender string) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
 	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType, c)
 	select {
@@ -420,6 +440,7 @@ type UAN struct {
 type UAPreport struct {
 	id              string
 	accountGroup    string
+	account 		string
 	quantity        string
 	price           string
 	side            string

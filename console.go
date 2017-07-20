@@ -55,25 +55,33 @@ func QueryPAndLPos(id string, account string, c chan UAN) (err error) {
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, side enum.Side, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType, c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.id = id
 	orderQuery.channel =c
 	NewOrders = append(NewOrders, orderQuery)
 
+
 	var ordType field.OrdTypeField
 	ordType.FIXString = quickfix.FIXString(ordtype)
-	order := fix42nos.New(field.NewClOrdID(id), field.NewHandlInst("1"), field.NewSymbol(symbol), field.NewSide(side), field.NewTransactTime(time.Now()), ordType)
+	var sideField field.SideField
+	sideField.FIXString = quickfix.FIXString(side)
+
+	order := fix42nos.New(field.NewClOrdID(id), field.NewHandlInst("1"), field.NewSymbol(symbol), sideField, field.NewTransactTime(time.Now()), ordType)
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	order.Set(productTypeField)
 
 	qty, _ := decimal.NewFromString(quantity)
 	order.SetOrderQty(qty, 2)
-	price, _ := decimal.NewFromString(pri)
-	order.SetPrice(price, 2)
-
+	if(ordtype != "1") {
+		price, _ := decimal.NewFromString(pri)
+		order.SetPrice(price, 2)
+	}
 	//INStrument Block
 	order.SetSecurityExchange(exchange)
-	order.SetSecurityType(productType) //product type FUT for future OPT for option
 	if(productType =="FUT"){
 		order.SetMaturityMonthYear(maturity)
 	}
@@ -116,7 +124,7 @@ func QueryOrderCancel(id string, orderID string, c chan OrderConfirmation) {
 	SendMessage(message)
 }
 
-func QueryOrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string,productType enum.SecurityType, c chan OrderConfirmation) {
+func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string,productType string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.id = newid
@@ -129,9 +137,20 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	message.Body.Set(field.NewOrderID(orderID))
 	message.Body.Set(field.NewClOrdID(newid))
 	message.Body.Set(field.NewSymbol(symbol))
-	message.Body.Set(field.NewSide(side))
 	message.Body.Set(field.NewTransactTime(time.Now()))
-	message.Body.Set(field.NewOrdType(ordType))
+
+	var ordType field.OrdTypeField
+	ordType.FIXString = quickfix.FIXString(ordtype)
+	message.Body.Set(ordType)
+
+	var sideField field.SideField
+	sideField.FIXString = quickfix.FIXString(side)
+	message.Body.Set(sideField)
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	message.Body.Set(productTypeField)
+
 
 	qty, _ := decimal.NewFromString(quantity)
 	message.Body.Set(field.NewOrderQty(qty, 2))
@@ -141,7 +160,6 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 
 	//INStrument Block
 	message.Body.Set(field.NewSecurityExchange(exchange))
-	message.Body.Set(field.NewSecurityType(productType)) ///default to future
 	if(productType == "FUT"){
 		message.Body.Set(field.NewMaturityMonthYear(maturity))
 	}
@@ -152,7 +170,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	SendMessage(message)
 
 }
-func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType enum.SecurityType, c chan MarketDataReq) {
+func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType string, c chan MarketDataReq) {
 
 	var md MarketDataReq
 	md.id =id
@@ -168,7 +186,6 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	message.Body.Set(field.NewAggregatedBook(true))   //always true
 	message.Body.Set(field.NewNoMDEntryTypes(1))      //number of price types
 	message.Body.Set(field.NewMDEntryType(priceType)) // price type
-	//message.Body.Set(field.NewNoRelatedSym(1))
 
 	////INStrument Block
 	mdr := fix42mdq.FromMessage(message)
@@ -177,7 +194,10 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	newSym := group.Add()
 	newSym.SetSymbol(symbol)
 	newSym.SetSecurityExchange(exchange)
-	newSym.SetSecurityType(productType)
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	newSym.Set(productTypeField)
+
 	m, _ := strconv.Atoi(maturity)
 	newSym.SetMaturityDay(m)
 

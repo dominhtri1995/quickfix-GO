@@ -23,6 +23,7 @@ Loop:
 				fmt.Printf("Error when getting UAN: %s",uan.reason)
 				continue
 			}
+			fmt.Printf("We have totally %d position for account %s and accountgroup %s \n",len(uan.reports),uan.account,uan.accountGroup)
 			for _, uap := range uan.reports {
 				fmt.Printf("%s \n", uap.product)
 			}
@@ -73,11 +74,8 @@ Loop:
 			// Replace/Edit the first working order
 			order := wo.workingOrders[0]
 			//Change quantity
-			// Enum.type like side, ordType and ProductType need to be handled separately
-			// because they are constant, can't pass string in there.
-			//You can switch the order.side , order.ordType and ord.productType to get the correct
-			// constant from enum.SIDE , enum.OrdType,enum.SecurityType
-			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, "1", "2", "962", order.price, order.symbol, order.exchange, order.productMaturity, "FUT","VENUSTECH3")
+			fmt.Printf("Order type nè %s",order.ordType)
+			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, order.sideNum, order.ordType, "962", order.price, order.symbol, order.exchange, order.productMaturity, order.productType,"VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Replaced Successfully \n")
 			}else if(ordStatus.status == "rejected"){
