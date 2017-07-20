@@ -326,11 +326,11 @@ func StartQuickFix() {
  */
 func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(id, accountGroup,sender, c)
+	QueryPAndLSOD(id, accountGroup,sender, c) // Get SOD report for position upto today
 
 	var uan1 UAN
 	c1 := make (chan UAN)
-	QueryPAndLPos(xid.New().String(),account,sender,c1)
+	QueryPAndLPos(xid.New().String(),account,sender,c1) // Get Position report for positions placed today
 
 	select {
 	case uan = <-c:
@@ -346,6 +346,7 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 			uan.reports= append(uan.reports, uan1.reports[0:]...)
 			uan.count = len(uan.reports)
 			uan.account = uan1.account
+			uan.status = "ok"
 		}
 	case <-getTimeOutChan():
 		var uan UAN
