@@ -29,8 +29,8 @@ ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500",
 			}
 ```
 - Notes: 
-  1. This TT code can run independently from Mistro and it is highly recommended to keep it that way. The independence of TT Adapter from mistro make developers's life easier when debugging or troubleshooting order related issue or make changes to TT Adapter
-  2. TT Adapter code needs to pass TT API conformance test before used in production hence any small changes to TT code require going through the conformance test again which IS A PAIN IN THE ASS ! That's why keeping it seperate from mistro allows us to make changes in mistro features without worrying about crash TT Server.
+  1. This TT code can run independently from Mistro and it is highly recommended to keep it that way. The independence of TT Adapter from mistro makes developers's life easier when debugging or troubleshooting order related issue or make changes to TT Adapter
+  2. TT Adapter code needs to pass TT API conformance test before used in production hence any small changes to TT code require going through the conformance test again which IS A PAIN IN THE ASS ! That's why keeping it seperate from mistro allows us to make changes in mistro features without worrying about crashing TT Server.
 
 Good luck!
 
