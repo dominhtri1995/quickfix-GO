@@ -33,8 +33,14 @@ func QueryPAndLSOD(id string, accountGroup string, c chan UAN) (err error) {
 
 	return
 }
-func QueryPAndLPos(id string, account string) (err error) {
+func QueryPAndLPos(id string, account string, c chan UAN) (err error) {
 	//UANS
+	var u UAN
+	u.id = id
+	u.count=0
+	u.channel =c
+	u.account = account
+	UANs = append(UANs, u)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header)
@@ -68,7 +74,9 @@ func QueryNewOrderSingle(id string, account string, side enum.Side, ordtype stri
 	//INStrument Block
 	order.SetSecurityExchange(exchange)
 	order.SetSecurityType(productType) //product type FUT for future OPT for option
-	order.SetMaturityMonthYear(maturity)
+	if(productType =="FUT"){
+		order.SetMaturityMonthYear(maturity)
+	}
 	order.Set(field.NewTimeInForce("0")) /// default to 0
 	order.SetAccount(account)
 
@@ -134,7 +142,9 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	//INStrument Block
 	message.Body.Set(field.NewSecurityExchange(exchange))
 	message.Body.Set(field.NewSecurityType(productType)) ///default to future
-	message.Body.Set(field.NewMaturityMonthYear(maturity))
+	if(productType == "FUT"){
+		message.Body.Set(field.NewMaturityMonthYear(maturity))
+	}
 
 	message.Body.Set(field.NewTimeInForce("0")) /// default to 0
 	message.Body.Set(field.NewAccount(account))

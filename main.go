@@ -18,7 +18,7 @@ Loop:
 		}
 		switch action {
 		case "1":
-			uan := TT_PAndLSOD(xid.New().String(), "TTORDFA222222")
+			uan := TT_PAndLSOD(xid.New().String(),"venustech" ,"TTORDFA222222","VENUSTECH3")
 			if(uan.status == "rejected"){
 				fmt.Printf("Error when getting UAN: %s",uan.reason)
 				continue
@@ -27,7 +27,7 @@ Loop:
 				fmt.Printf("%s \n", uap.product)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT","VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Placed Successfully \n")
 			}else if(ordStatus.status == "rejected"){
@@ -37,7 +37,7 @@ Loop:
 				}
 			}
 		case "3":
-			wo := TT_WorkingOrder("venustech")
+			wo := TT_WorkingOrder("venustech","VENUSTECH3")
 			if(wo.status != "rejected"){
 				for _, order := range wo.workingOrders {
 					fmt.Printf("%s \n", order.symbol)
@@ -47,13 +47,13 @@ Loop:
 			}
 
 		case "4":
-			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "5", "BZ", "CME", "201709", "FUT")
+			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT","VENUSTECH")
 			fmt.Printf("Price :%s \n", mdr.price)
 
 		case "5":
-			wo := TT_WorkingOrder("venustech") // get all working order
+			wo := TT_WorkingOrder("venustech","VENUSTECH3") // get all working order
 
-			ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[0].orderID) // Cancel the first working order
+			ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[0].orderID,"VENUSTECH3") // Cancel the first working order
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Cancelled Successfully \n")
 			}else if(ordStatus.status == "rejected"){
@@ -63,15 +63,21 @@ Loop:
 				}
 			}
 		case "6":
-			wo := TT_WorkingOrder("venustech") // get all working order
+			wo := TT_WorkingOrder("venustech","VENUSTECH3") // get all working order
 			for i := range wo.workingOrders{
-				ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[i].orderID) // Cancel the first working order
+				ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[i].orderID,"VENUSTECH3") // Cancel the first working order
 				fmt.Printf("Status: %s \n", ordStatus.status)
 			}
 		case "7":
-			wo := TT_WorkingOrder("venustech") // get all working order
+			wo := TT_WorkingOrder("venustech","VENUSTECH3") // get all working order
 			// Replace/Edit the first working order
-			ordStatus := TT_OrderCancelReplace(wo.workingOrders[0].orderID, xid.New().String(), "venustech", "1", "2", "250", "4440", "BZ", "CME", "201709", "FUT")
+			order := wo.workingOrders[0]
+			//Change quantity
+			// Enum.type like side, ordType and ProductType need to be handled separately
+			// because they are constant, can't pass string in there.
+			//You can switch the order.side , order.ordType and ord.productType to get the correct
+			// constant from enum.SIDE , enum.OrdType,enum.SecurityType
+			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, "1", "2", "962", order.price, order.symbol, order.exchange, order.productMaturity, "FUT","VENUSTECH3")
 			if(ordStatus.status == "ok"){
 				fmt.Printf("Order Replaced Successfully \n")
 			}else if(ordStatus.status == "rejected"){

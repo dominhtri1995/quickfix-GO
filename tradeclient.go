@@ -9,8 +9,8 @@ import (
 
 	"github.com/quickfixgo/quickfix"
 	"github.com/quickfixgo/quickfix/enum"
-	"github.com/rs/xid"
 	"time"
+	"github.com/rs/xid"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -142,18 +142,20 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 
 					var order WorkingOrder
 					order.orderID, _ = msg.Body.GetString(quickfix.Tag(37))
-					order.price, _ = msg.Body.GetString(quickfix.Tag(6))
+					order.price, _ = msg.Body.GetString(quickfix.Tag(44))
 					order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
 					order.ordStatus, _ = msg.Body.GetString(quickfix.Tag(39))
 					order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-					side, _ := msg.Body.GetInt(quickfix.Tag(54))
-					if ( side == 1) {
+					order.exchange,_ = msg.Body.GetString(quickfix.Tag(207))
+					order.side, _ = msg.Body.GetString(quickfix.Tag(54))
+					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+					if order.sideNum == "1" {
 						order.side = "buy"
 					} else {
 						order.side = "sell"
 					}
-					productType, _ := msg.Body.GetString(quickfix.Tag(167))
-					if (productType == "FUT") {
+					order.productType, _ = msg.Body.GetString(quickfix.Tag(167))
+					if (order.productType == "FUT") {
 						order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
 					OSRs[i].workingOrders = append(OSRs[i].workingOrders, order)
@@ -305,7 +307,6 @@ func StartQuickFix() {
 		fmt.Printf("Unable to create Initiator: %s\n", err)
 		return
 	}
-
 	initiator.Start()
 
 }
@@ -316,10 +317,13 @@ func StartQuickFix() {
 /*	Sepearte TT from mistro code
 /*  For easy debug and maintain code with TT
  */
-func TT_PAndLSOD(id string, accountGroup string) (uan UAN) {
+func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(xid.New().String(), accountGroup, c)
+	QueryPAndLSOD(id, accountGroup, c)
 
+	intradayID := xid.New().String()
+	c1 := make (chan UAN)
+	QueryPAndLPos(intradayID,account,c1)
 	select {
 	case uan= <-c:
 		return uan
@@ -330,9 +334,9 @@ func TT_PAndLSOD(id string, accountGroup string) (uan UAN) {
 	}
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side enum.Side, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side enum.Side, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(xid.New().String(), account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -343,7 +347,7 @@ func TT_NewOrderSingle(id string, account string, side enum.Side, ordType string
 	return ordStatus
 }
 
-func TT_WorkingOrder(account string) (wo OrderStatusReq) {
+func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
 	c := make(chan OrderStatusReq)
 	QueryWorkingOrder(account, c)
 	select {
@@ -355,9 +359,9 @@ func TT_WorkingOrder(account string) (wo OrderStatusReq) {
 	}
 	return wo
 }
-func TT_OrderCancel(id string, orderID string) (ordStatus OrderConfirmation) {
+func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancel(xid.New().String(), orderID, c) // Cancel the first working order
+	QueryOrderCancel(id, orderID, c) // Cancel the first working order
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -367,9 +371,9 @@ func TT_OrderCancel(id string, orderID string) (ordStatus OrderConfirmation) {
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side enum.Side, ordType enum.OrdType, quantity string, pri string, symbol string, exchange string, maturity string, productType enum.SecurityType,sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, xid.New().String(), account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c) // Replace the first working order
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, c) // Replace the first working order
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -380,9 +384,9 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side en
 	return ordStatus
 }
 
-func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType enum.SecurityType) (mdr MarketDataReq) {
+func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType enum.SecurityType,sender string) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
-	QueryMarketDataRequest(xid.New().String(), requestType, marketDepth, priceType, symbol, exchange, maturity, productType, c)
+	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType, c)
 	select {
 	case mdr = <-c:
 		return mdr
@@ -405,6 +409,7 @@ type TradeClient struct {
 }
 type UAN struct {
 	id           string
+	account      string
 	accountGroup string
 	count        int
 	channel      chan UAN
@@ -437,7 +442,11 @@ type WorkingOrder struct {
 	quantity        string
 	symbol          string
 	productMaturity string
+	exchange 		string
+	productType     string
 	side            string
+	sideNum			string
+	ordType 		string
 }
 
 type OrderConfirmation struct {
