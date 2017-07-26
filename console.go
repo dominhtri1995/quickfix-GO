@@ -218,18 +218,32 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	SendMessage(mdr.ToMessage())
 }
 
-func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string,sender string) {
+func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string,sender string, c chan SecurityDefinitionReq) {
+
+	var sdr SecurityDefinitionReq
+	sdr.id = id
+	sdr.channel =c
+	securityDefinitionMap.Store(id,&sdr)
+
 	message := quickfix.NewMessage()
 	queryHeader(message.Header,sender)
 	message.Header.Set(field.NewMsgType("c"))
-	message.Body.Set(field.NewSymbol(symbol))
+	message.Body.Set(field.NewSecurityReqID(id))
+	if symbol != ""{
+		message.Body.Set(field.NewSymbol(symbol))
+	}
 
-	var productTypeField field.SecurityTypeField
-	productTypeField.FIXString = quickfix.FIXString(productType)
-	message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
-
-	message.Body.Set(field.NewSecurityExchange(exchange))
-	message.Body.Set(field.NewSecurityID(securityID))
+	if productType != ""{
+		var productTypeField field.SecurityTypeField
+		productTypeField.FIXString = quickfix.FIXString(productType)
+		message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
+	}
+	if securityID != ""{
+		message.Body.Set(field.NewSecurityID(securityID))
+	}
+	if exchange != ""{
+		message.Body.Set(field.NewSecurityExchange(exchange))
+	}
 	message.Body.SetString(quickfix.Tag(17000),"Y")
 	SendMessage(message)
 }

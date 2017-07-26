@@ -85,7 +85,16 @@ Loop:
 				}
 			}
 		case "8":
-			QuerySecurityDefinitionRequest(xid.New().String(),"BZ","CME","00A0IR00BZZ","FUT","VENUSTECH3")
+			//pass in parameters for filter, pass "" if do not want to use that criteria
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","CME","00A0IR00BZZ","FUT","VENUSTECH3")
+			if sdr.status =="ok"{
+				for _,security := range sdr.securityList{
+					fmt.Printf("%s with tickValue: %f and tickSize %f \n",security.symbol,security.tickValue,security.tickSize)
+				}
+			}else{
+				fmt.Println("error getting security definition")
+				fmt.Println("Reason: ",sdr.reason)
+			}
 		case "9":
 			break Loop
 		default:
