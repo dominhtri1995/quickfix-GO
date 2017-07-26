@@ -86,7 +86,7 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	}
 	//INStrument Block
 	order.SetSecurityExchange(exchange)
-	if(productType =="FUT"){
+	if	productType == "FUT" || productType == "OPT" || productType == "NRG"{
 		order.SetMaturityMonthYear(maturity)
 	}
 
@@ -168,7 +168,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 
 	//INStrument Block
 	message.Body.Set(field.NewSecurityExchange(exchange))
-	if(productType == "FUT"){
+	if productType == "FUT" || productType == "OPT" || productType == "NRG"{
 		message.Body.Set(field.NewMaturityMonthYear(maturity))
 	}
 
@@ -181,6 +181,12 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	var md MarketDataReq
 	md.id =id
 	md.channel = c
+	md.symbol = symbol
+	md.priceType =string(priceType)
+	md.productMaturity=maturity
+	md.exchange =exchange
+	md.marketDepth = string(marketDepth)
+	md.symbol = symbol
 	marketDataRequestMap.Store(id,&md)
 
 	message := quickfix.NewMessage()
@@ -212,14 +218,19 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	SendMessage(mdr.ToMessage())
 }
 
-func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string,sender string) {
+func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string,sender string) {
 	message := quickfix.NewMessage()
-	queryHeaderPrice(message.Header,sender)
+	queryHeader(message.Header,sender)
 	message.Header.Set(field.NewMsgType("c"))
 	message.Body.Set(field.NewSymbol(symbol))
-	message.Body.Set(field.NewSecurityType("FUT")) //Future || CHange this if want to support option
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
+
 	message.Body.Set(field.NewSecurityExchange(exchange))
 	message.Body.Set(field.NewSecurityID(securityID))
+	message.Body.SetString(quickfix.Tag(17000),"Y")
 	SendMessage(message)
 }
 

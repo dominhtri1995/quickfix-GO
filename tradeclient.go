@@ -79,8 +79,9 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order, _ := order.(*OrderConfirmation)
 					order.status = "ok"
 					order.account = account
-					order.channel <- *order     //Send data back to channel
-					newOrderMap.Delete(clOrdID) // Remove Order status request from list
+					extractInfoExcecutionReport(order, msg) //Get all the order-related info :trade,price plapla
+					order.channel <- *order                 //Send data back to channel
+					newOrderMap.Delete(clOrdID)             // Remove Order status request from list
 				}
 			case ordStatus == string(enum.OrdStatus_REJECTED):
 				//rejected
@@ -90,6 +91,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.status = "rejected"
 					order.account = account
 					order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					newOrderMap.Delete(clOrdID)
 				}
@@ -99,6 +101,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order, _ := order.(*OrderConfirmation)
 					order.status = "ok"
 					order.account = account
+					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
@@ -108,6 +111,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order, _ := order.(*OrderConfirmation)
 					order.status = "ok"
 					order.account = account
+					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
@@ -135,7 +139,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			account, err := msg.Body.GetString(quickfix.Tag(1))
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16728))
 			for osr := range orderStatusRequestList.Iter() {
-				orderStatusRequest,_ := osr.Value.(*OrderStatusReq)
+				orderStatusRequest, _ := osr.Value.(*OrderStatusReq)
 				if err == nil && account == orderStatusRequest.account { // GET book order not single order status request
 					orderStatusRequest.count, _ = strconv.Atoi(numPosReports)
 
@@ -143,15 +147,16 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.orderID, _ = msg.Body.GetString(quickfix.Tag(37))
 					order.price, _ = msg.Body.GetString(quickfix.Tag(44))
 					order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+					order.filledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+					order.originalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
 					order.ordStatus, _ = msg.Body.GetString(quickfix.Tag(39))
 					order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 					order.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
 					order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
 					order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
-					order.filledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+					order.securityID,_ = msg.Body.GetString(quickfix.Tag(48))
 					order.text, _ = msg.Body.GetString(quickfix.Tag(58))
-					order.originalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
 
 					if order.sideNum == "1" {
 						order.side = "buy"
@@ -159,7 +164,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 						order.side = "sell"
 					}
 					order.productType, _ = msg.Body.GetString(quickfix.Tag(167))
-					if (order.productType == "FUT") {
+					if order.productType == "FUT" || order.productType == "OPT" || order.productType == "NRG" {
 						order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
 					orderStatusRequest.workingOrders = append(orderStatusRequest.workingOrders, order)
@@ -181,6 +186,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			order, _ := order.(*OrderConfirmation)
 			order.status = "rejected"
 			order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+			extractInfoExcecutionReport(order, msg)
 			order.channel <- *order
 			cancelAndUpdateMap.Delete(clOrdID)
 		}
@@ -208,6 +214,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.account, _ = msg.Body.GetString(quickfix.Tag(1))
 			// fmt.Println(uap.accountGroup)
 			uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
+			uap.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
 			uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
 			productType, _ := msg.Body.GetString(quickfix.Tag(167))
 			if (productType == "FUT") {
@@ -297,15 +304,15 @@ func StartQuickFix() {
 	}
 
 	app := TradeClient{}
-	fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
-	//screenLogFactory := quickfix.NewScreenLogFactory()
+	//fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
+	screenLogFactory := quickfix.NewScreenLogFactory()
 
 	if err != nil {
 		fmt.Println("Error creating file log factory,", err)
 		return
 	}
 
-	initiator, err := quickfix.NewInitiator(app, quickfix.NewMemoryStoreFactory(), appSettings, fileLogFactory)
+	initiator, err := quickfix.NewInitiator(app, quickfix.NewMemoryStoreFactory(), appSettings, screenLogFactory)
 	if err != nil {
 		fmt.Printf("Unable to create Initiator: %s\n", err)
 		return
@@ -422,6 +429,25 @@ func getTimeOutChan() chan bool {
 	}()
 	return timeout
 }
+func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message) {
+	order.price, _ = msg.Body.GetString(quickfix.Tag(44))     //not available for market order
+	order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+	order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+	order.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+	order.productType, _ = msg.Body.GetString(quickfix.Tag(167))
+	order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
+	order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+	order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+	order.securityID,_ = msg.Body.GetString(quickfix.Tag(48))
+	if order.sideNum == "1" {
+		order.side = "buy"
+	} else {
+		order.side = "sell"
+	}
+	if order.productType == "FUT" || order.productType == "OPT" || order.productType == "NRG" {
+		order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+	}
+}
 
 type TradeClient struct {
 }
@@ -444,6 +470,8 @@ type UAPreport struct {
 	side            string
 	product         string
 	productMaturity string
+	exchange        string
+	securityID      string
 }
 
 type OrderStatusReq struct {
@@ -465,6 +493,7 @@ type WorkingOrder struct {
 	productMaturity  string
 	exchange         string
 	productType      string
+	securityID       string
 	side             string
 	sideNum          string
 	ordType          string
@@ -473,11 +502,22 @@ type WorkingOrder struct {
 }
 
 type OrderConfirmation struct {
-	id      string
-	account string
-	status  string
-	reason  string
-	channel chan OrderConfirmation
+	id              string
+	account         string
+	status          string
+	reason          string
+	symbol          string
+	productMaturity string
+	exchange        string
+	productType     string
+	securityID      string
+	side            string
+	price           string
+	quantity        string
+	timeInForce     string
+	ordType         string
+	sideNum         string
+	channel         chan OrderConfirmation
 }
 
 type MarketDataReq struct {
@@ -487,10 +527,13 @@ type MarketDataReq struct {
 	symbol          string
 	productMaturity string
 	exchange        string
-	channel         chan MarketDataReq
-	status          string
-	reason          string
+	marketDepth     string
+
+	channel chan MarketDataReq
+	status  string
+	reason  string
 }
+
 //********* Concurrent SLice ************************** //
 
 type ConcurrentSlice struct {
@@ -503,6 +546,7 @@ type ConcurrentSliceItem struct {
 	Index int
 	Value interface{}
 }
+
 // Appends an item to the concurrent slice
 func (cs *ConcurrentSlice) append(item interface{}) {
 	cs.Lock()
@@ -533,4 +577,5 @@ func (cs *ConcurrentSlice) Iter() <-chan ConcurrentSliceItem {
 
 	return c
 }
+
 //********* End Concurrent Slice ************************** //
