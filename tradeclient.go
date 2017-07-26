@@ -11,6 +11,7 @@ import (
 	"github.com/quickfixgo/quickfix/enum"
 	"time"
 	"github.com/rs/xid"
+	"golang.org/x/sync/syncmap"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -73,45 +74,41 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			case ordStatus == string(enum.OrdStatus_NEW):
 				// New Order
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
-				for i, order := range NewOrders {
-					if (err == nil && order.id == clOrdID ) {
-						order.status = "ok"
-						order.account = account
-						order.channel <- order                                //Send data back to channel
-						NewOrders = append(NewOrders[:i], NewOrders[i+1:]...) // Remove Order status request from list
-					}
+				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
+					order, _ := order.(*OrderConfirmation)
+					order.status = "ok"
+					order.account = account
+					order.channel <- *order     //Send data back to channel
+					newOrderMap.Delete(clOrdID) // Remove Order status request from list
 				}
 			case ordStatus == string(enum.OrdStatus_REJECTED):
 				//rejected
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
-				for i, order := range NewOrders {
-					if (err == nil && order.id == clOrdID ) {
-						order.status = "rejected"
-						order.account = account
-						order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
-						order.channel <- order
-						NewOrders = append(NewOrders[:i], NewOrders[i+1:]...)
-					}
+				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
+					order, _ := order.(*OrderConfirmation)
+					order.status = "rejected"
+					order.account = account
+					order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+					order.channel <- *order
+					newOrderMap.Delete(clOrdID)
 				}
 			case ordStatus == string(enum.OrdStatus_CANCELED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
-				for i, order := range CancelAndUpdateOrders {
-					if (err == nil && order.id == clOrdID ) {
-						order.status = "ok"
-						order.account = account
-						order.channel <- order
-						CancelAndUpdateOrders = append(CancelAndUpdateOrders[:i], CancelAndUpdateOrders[i+1:]...)
-					}
+				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
+					order, _ := order.(*OrderConfirmation)
+					order.status = "ok"
+					order.account = account
+					order.channel <- *order
+					cancelAndUpdateMap.Delete(clOrdID)
 				}
 			case ordStatus == string(enum.OrdStatus_REPLACED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
-				for i, order := range CancelAndUpdateOrders {
-					if (err == nil && order.id == clOrdID ) {
-						order.status = "ok"
-						order.account = account
-						order.channel <- order
-						CancelAndUpdateOrders = append(CancelAndUpdateOrders[:i], CancelAndUpdateOrders[i+1:]...)
-					}
+				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
+					order, _ := order.(*OrderConfirmation)
+					order.status = "ok"
+					order.account = account
+					order.channel <- *order
+					cancelAndUpdateMap.Delete(clOrdID)
 				}
 			case ordStatus == string(enum.OrdStatus_PARTIALLY_FILLED):
 				//Partially filled
@@ -146,10 +143,14 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
 					order.ordStatus, _ = msg.Body.GetString(quickfix.Tag(39))
 					order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-					order.exchange,_ = msg.Body.GetString(quickfix.Tag(207))
+					order.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
 					order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
 					order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+					order.filledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+					order.text, _ = msg.Body.GetString(quickfix.Tag(58))
+					order.originalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
+
 					if order.sideNum == "1" {
 						order.side = "buy"
 					} else {
@@ -162,10 +163,10 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					OSRs[i].workingOrders = append(OSRs[i].workingOrders, order)
 				}
 
-				if (OSRs[i].count == len(OSRs[i].workingOrders)) {
+				if OSRs[i].count == len(OSRs[i].workingOrders) {
 					// Receive all working orders
 					fmt.Printf("Receve all working orders : %d for account %s \n", len(OSRs[i].workingOrders), OSRs[i].account)
-					OSRs[i].status ="ok"
+					OSRs[i].status = "ok"
 					OSRs[i].channel <- OSRs[i]
 					OSRs = append(OSRs[:i], OSRs[i+1:]...)
 					break
@@ -174,111 +175,106 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		}
 	case messageType == string(enum.MsgType_ORDER_CANCEL_REJECT):
 		clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
-		for i, order := range CancelAndUpdateOrders {
-			if (err == nil && order.id == clOrdID ) {
-				order.status = "rejected"
-				order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
-				order.channel <- order
-				CancelAndUpdateOrders = append(CancelAndUpdateOrders[:i], CancelAndUpdateOrders[i+1:]...)
-			}
+		if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
+			order, _ := order.(*OrderConfirmation)
+			order.status = "rejected"
+			order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+			order.channel <- *order
+			cancelAndUpdateMap.Delete(clOrdID)
 		}
 		/* UAP - UAP - UAP - UAP - UAP - UAP - UAP */
 	case messageType == "UAP":
 		// fmt.Printf("Receiving UAP \n")
 		var uid, _ = msg.Body.GetString(quickfix.Tag(16710))
-		for i := range UANs {
-			if (uid == UANs[i].id) {
-				numPosReports, _ := msg.Body.GetString(quickfix.Tag(16727))
-				UANs[i].count, _ = strconv.Atoi(numPosReports)
+		if uan, ok := uanMap.Load(uid); ok {
+			uan, _ := uan.(*UAN)
+			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16727))
+			uan.count, _ = strconv.Atoi(numPosReports)
 
-				//Create a new UAP object
-				var uap UAPreport
-				uap.quantity, _ = msg.Body.GetString(quickfix.Tag(32))
-				q, _ := strconv.Atoi(uap.quantity)
+			//Create a new UAP object
+			var uap UAPreport
+			uap.quantity, _ = msg.Body.GetString(quickfix.Tag(32))
+			q, _ := strconv.Atoi(uap.quantity)
 
-				if (q > 0) {
-					uap.side = "long"
-				} else {
-					uap.side = "short"
-					uap.quantity = string(q * (-1))
-				}
-				uap.accountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
-				uap.account , _ = msg.Body.GetString(quickfix.Tag(1))
-				// fmt.Println(uap.accountGroup)
-				uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
-				uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
-				productType, _ := msg.Body.GetString(quickfix.Tag(167))
-				if (productType == "FUT") {
-					uap.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
-				}
-				UANs[i].reports = append(UANs[i].reports, uap)
+			if (q > 0) {
+				uap.side = "long"
+			} else {
+				uap.side = "short"
+				uap.quantity = string(q * (-1))
+			}
+			uap.accountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
+			uap.account, _ = msg.Body.GetString(quickfix.Tag(1))
+			// fmt.Println(uap.accountGroup)
+			uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
+			uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
+			productType, _ := msg.Body.GetString(quickfix.Tag(167))
+			if (productType == "FUT") {
+				uap.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+			}
+			uan.reports = append(uan.reports, uap)
 
-				//UAN Complete
-				posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
-				if (len(UANs[i].reports) == UANs[i].count) {
-					for j := 0; j < len(UANs[i].reports); j++ {
-						if posReqType =="4" && UANs[i].accountGroup != UANs[i].reports[j].accountGroup {
-							UANs[i].reports = append(UANs[i].reports[:j], UANs[i].reports[j+1:]...)
-							j--
-						}else if posReqType =="0" && UANs[i].account != UANs[i].reports[j].account{
-							UANs[i].reports = append(UANs[i].reports[:j], UANs[i].reports[j+1:]...)
-							j--
-						}
+			//UAN Complete
+			posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
+			if len(uan.reports) == uan.count {
+				for j := 0; j < len(uan.reports); j++ {
+					if posReqType == "4" && uan.accountGroup != uan.reports[j].accountGroup {
+						uan.reports = append(uan.reports[:j], uan.reports[j+1:]...)
+						j--
+					} else if posReqType == "0" && uan.account != uan.reports[j].account {
+						uan.reports = append(uan.reports[:j], uan.reports[j+1:]...)
+						j--
 					}
-					fmt.Printf("Number of positions :%d for trader %s \n", len(UANs[i].reports), UANs[i].accountGroup)
-					UANs[i].channel <- UANs[i] // return the result to channel
-					UANs = append(UANs[:i], UANs[i+1:]...)
 				}
-				break
+				fmt.Printf("Number of positions :%d for trader %s \n", len(uan.reports), uan.accountGroup)
+				uan.channel <- *uan // return the result to channel
+				uanMap.Delete(uid)
 			}
 		}
 	case messageType == "W": //Market data request
 		uid, _ := msg.Body.GetString(quickfix.Tag(262))
-		for i, md := range MarketDataRequests {
-			if uid == md.id {
-
-				//create market data reqest response
-				md.price, err = msg.Body.GetString(quickfix.Tag(270))
-				if ( err != nil) {
-					md.price = "0" //Price not available
-					md.status= "rejected"
-					md.reason = "price not available"
-				}else{
-					md.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-					md.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-					productType, _ := msg.Body.GetString(quickfix.Tag(167))
-					if (productType == "FUT") {
-						md.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
-					}
-
-					md.priceType, _ = msg.Body.GetString(quickfix.Tag(269))
-					md.status = "ok"
+		if md, ok := marketDataRequestMap.Load(uid); ok {
+			md, _ := md.(*MarketDataReq)
+			//create market data reqest response
+			md.price, err = msg.Body.GetString(quickfix.Tag(270))
+			if ( err != nil) {
+				md.price = "0" //Price not available
+				md.status = "rejected"
+				md.reason = "price not available"
+			} else {
+				md.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+				md.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+				productType, _ := msg.Body.GetString(quickfix.Tag(167))
+				if (productType == "FUT") {
+					md.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 				}
 
-				md.channel <- md
-				MarketDataRequests = append(MarketDataRequests[:i], MarketDataRequests[i+1:]...)
-				break
+				md.priceType, _ = msg.Body.GetString(quickfix.Tag(269))
+				md.status = "ok"
 			}
+
+			md.channel <- *md
+			marketDataRequestMap.Delete(uid)
 		}
 	case messageType == "Y": //Market data reject
 		uid, _ := msg.Body.GetString(quickfix.Tag(262))
-		for i, md := range MarketDataRequests {
-			if uid == md.id {
-				md.status = "rejected"
-				md.reason, _ = msg.Body.GetString(quickfix.Tag(58))
-				md.channel <- md
-				MarketDataRequests = append(MarketDataRequests[:i], MarketDataRequests[i+1:]...)
-			}
+		if md, ok := marketDataRequestMap.Load(uid); ok {
+			md, _ := md.(*MarketDataReq)
+			md.status = "rejected"
+			md.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+			md.channel <- *md
+			marketDataRequestMap.Delete(uid)
 		}
 	}
 	return
 }
 
-var UANs []UAN
 var OSRs []OrderStatusReq
-var NewOrders []OrderConfirmation
-var CancelAndUpdateOrders []OrderConfirmation
-var MarketDataRequests []MarketDataReq
+
+var uanMap syncmap.Map
+var orderStatusRequestMap syncmap.Map
+var newOrderMap syncmap.Map
+var cancelAndUpdateMap syncmap.Map
+var marketDataRequestMap syncmap.Map
 
 func StartQuickFix() {
 	flag.Parse()
@@ -324,13 +320,13 @@ func StartQuickFix() {
 /*	Sepearte TT from mistro code
 /*  For easy debug and maintain code with TT
  */
-func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (uan UAN) {
+func TT_PAndLSOD(id string, account string, accountGroup string, sender string) (uan UAN) {
 	c := make(chan UAN)
-	QueryPAndLSOD(id, accountGroup,sender, c) // Get SOD report for position upto today
+	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
 
 	var uan1 UAN
-	c1 := make (chan UAN)
-	QueryPAndLPos(xid.New().String(),account,sender,c1) // Get Position report for positions placed today
+	c1 := make(chan UAN)
+	QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
 
 	select {
 	case uan = <-c:
@@ -342,8 +338,8 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 	}
 	select {
 	case uan1 = <-c1:
-		if(uan.status !="rejected"){
-			uan.reports= append(uan.reports, uan1.reports[0:]...)
+		if (uan.status != "rejected") {
+			uan.reports = append(uan.reports, uan1.reports[0:]...)
 			uan.count = len(uan.reports)
 			uan.account = uan1.account
 			uan.status = "ok"
@@ -358,7 +354,7 @@ func TT_PAndLSOD(id string, account string, accountGroup string,sender string) (
 }
 func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,timeInForce,sender, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, timeInForce, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -369,9 +365,9 @@ func TT_NewOrderSingle(id string, account string, side string, ordType string, q
 	return ordStatus
 }
 
-func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
+func TT_WorkingOrder(account string, sender string) (wo OrderStatusReq) {
 	c := make(chan OrderStatusReq)
-	QueryWorkingOrder(account,sender, c)
+	QueryWorkingOrder(account, sender, c, xid.New().String())
 	select {
 	case wo = <-c:
 		return wo
@@ -381,9 +377,9 @@ func TT_WorkingOrder(account string,sender string) (wo OrderStatusReq) {
 	}
 	return wo
 }
-func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancel(id, orderID, sender,c)
+	QueryOrderCancel(id, orderID, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -393,9 +389,9 @@ func TT_OrderCancel(id string, orderID string,sender string) (ordStatus OrderCon
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string,timeInForce string,sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType,timeInForce, sender,c)
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, timeInForce, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -406,9 +402,9 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side st
 	return ordStatus
 }
 
-func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string,sender string) (mdr MarketDataReq) {
+func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string, sender string) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
-	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType,sender, c)
+	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType, sender, c)
 	select {
 	case mdr = <-c:
 		return mdr
@@ -442,7 +438,7 @@ type UAN struct {
 type UAPreport struct {
 	id              string
 	accountGroup    string
-	account 		string
+	account         string
 	quantity        string
 	price           string
 	side            string
@@ -459,18 +455,21 @@ type OrderStatusReq struct {
 	reason        string
 }
 type WorkingOrder struct {
-	orderID         string // Used to cancel order or request order status later
-	price           string
-	ordStatus       string
-	quantity        string
-	symbol          string
-	productMaturity string
-	exchange 		string
-	productType     string
-	side            string
-	sideNum			string
-	ordType 		string
-	timeInForce 	string
+	orderID          string // Used to cancel order or request order status later
+	price            string
+	ordStatus        string
+	quantity         string
+	filledQuantity   string
+	originalQuantity string
+	symbol           string
+	productMaturity  string
+	exchange         string
+	productType      string
+	side             string
+	sideNum          string
+	ordType          string
+	timeInForce      string
+	text             string
 }
 
 type OrderConfirmation struct {

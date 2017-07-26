@@ -21,7 +21,7 @@ func QueryPAndLSOD(id string, accountGroup string,sender string, c chan UAN) (er
 	u.channel =c
 	u.accountGroup = accountGroup
 
-	UANs = append(UANs, u)
+	uanMap.Store(id,&u)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header,sender)
@@ -40,7 +40,7 @@ func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err err
 	u.count=0
 	u.channel =c
 	u.account = account
-	UANs = append(UANs, u)
+	uanMap.Store(id,&u)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header,sender)
@@ -60,7 +60,7 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	var orderQuery OrderConfirmation
 	orderQuery.id = id
 	orderQuery.channel =c
-	NewOrders = append(NewOrders, orderQuery)
+	newOrderMap.Store(id,&orderQuery)
 
 
 	var ordType field.OrdTypeField
@@ -98,12 +98,13 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	SendMessage(message)
 }
 
-func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //Order status request
+func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq, id string) { //Order status request
 	var osq OrderStatusReq
 	osq.account = account
 	osq.channel = c
 	osq.count =0
 	OSRs = append(OSRs, osq)
+	orderStatusRequestMap.Store(id,&osq)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header, sender)
@@ -118,7 +119,7 @@ func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfi
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.id = id
 	cancelOrderQuery.channel =c
-	CancelAndUpdateOrders = append(CancelAndUpdateOrders, cancelOrderQuery)
+	cancelAndUpdateMap.Store(id,&cancelOrderQuery)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header,sender)
@@ -134,7 +135,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.id = newid
 	cancelOrderQuery.channel =c
-	CancelAndUpdateOrders = append(CancelAndUpdateOrders, cancelOrderQuery)
+	cancelAndUpdateMap.Store(newid,&cancelOrderQuery)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header,sender)
@@ -181,7 +182,7 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	var md MarketDataReq
 	md.id =id
 	md.channel = c
-	MarketDataRequests = append(MarketDataRequests,md)
+	marketDataRequestMap.Store(id,&md)
 
 	message := quickfix.NewMessage()
 	queryHeaderPrice(message.Header,sender)
