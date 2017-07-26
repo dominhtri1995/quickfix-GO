@@ -12,6 +12,7 @@ import (
 	"time"
 	"github.com/rs/xid"
 	"golang.org/x/sync/syncmap"
+	"sync"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -133,9 +134,10 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			//Order status request
 			account, err := msg.Body.GetString(quickfix.Tag(1))
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16728))
-			for i := range OSRs {
-				if (err == nil && account == OSRs[i].account) { // GET book order not single order status request
-					OSRs[i].count, _ = strconv.Atoi(numPosReports)
+			for osr := range orderStatusRequestList.Iter() {
+				orderStatusRequest,_ := osr.Value.(*OrderStatusReq)
+				if err == nil && account == orderStatusRequest.account { // GET book order not single order status request
+					orderStatusRequest.count, _ = strconv.Atoi(numPosReports)
 
 					var order WorkingOrder
 					order.orderID, _ = msg.Body.GetString(quickfix.Tag(37))
@@ -160,15 +162,15 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					if (order.productType == "FUT") {
 						order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
-					OSRs[i].workingOrders = append(OSRs[i].workingOrders, order)
+					orderStatusRequest.workingOrders = append(orderStatusRequest.workingOrders, order)
 				}
 
-				if OSRs[i].count == len(OSRs[i].workingOrders) {
+				if orderStatusRequest.count == len(orderStatusRequest.workingOrders) {
 					// Receive all working orders
-					fmt.Printf("Receve all working orders : %d for account %s \n", len(OSRs[i].workingOrders), OSRs[i].account)
-					OSRs[i].status = "ok"
-					OSRs[i].channel <- OSRs[i]
-					OSRs = append(OSRs[:i], OSRs[i+1:]...)
+					fmt.Printf("Receve all working orders : %d for account %s \n", len(orderStatusRequest.workingOrders), orderStatusRequest.account)
+					orderStatusRequest.status = "ok"
+					orderStatusRequest.channel <- *orderStatusRequest
+					orderStatusRequestList.remove(osr.Index)
 					break
 				}
 			}
@@ -268,10 +270,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 	return
 }
 
-var OSRs []OrderStatusReq
-
+var orderStatusRequestList ConcurrentSlice
 var uanMap syncmap.Map
-var orderStatusRequestMap syncmap.Map
 var newOrderMap syncmap.Map
 var cancelAndUpdateMap syncmap.Map
 var marketDataRequestMap syncmap.Map
@@ -367,7 +367,7 @@ func TT_NewOrderSingle(id string, account string, side string, ordType string, q
 
 func TT_WorkingOrder(account string, sender string) (wo OrderStatusReq) {
 	c := make(chan OrderStatusReq)
-	QueryWorkingOrder(account, sender, c, xid.New().String())
+	QueryWorkingOrder(account, sender, c)
 	select {
 	case wo = <-c:
 		return wo
@@ -491,3 +491,46 @@ type MarketDataReq struct {
 	status          string
 	reason          string
 }
+//********* Concurrent SLice ************************** //
+
+type ConcurrentSlice struct {
+	sync.RWMutex
+	items []interface{}
+}
+
+// Concurrent slice item
+type ConcurrentSliceItem struct {
+	Index int
+	Value interface{}
+}
+// Appends an item to the concurrent slice
+func (cs *ConcurrentSlice) append(item interface{}) {
+	cs.Lock()
+	defer cs.Unlock()
+	cs.items = append(cs.items, item)
+}
+func (cs *ConcurrentSlice) remove(index int) {
+	cs.Lock()
+	defer cs.Unlock()
+	cs.items = append(cs.items[:index], cs.items[index+1:]...)
+}
+
+// Iterates over the items in the concurrent slice
+// Each item is sent over a channel, so that
+// we can iterate over the slice using the builin range keyword
+func (cs *ConcurrentSlice) Iter() <-chan ConcurrentSliceItem {
+	c := make(chan ConcurrentSliceItem)
+
+	f := func() {
+		cs.Lock()
+		defer cs.Unlock()
+		for index, value := range cs.items {
+			c <- ConcurrentSliceItem{index, value}
+		}
+		close(c)
+	}
+	go f()
+
+	return c
+}
+//********* End Concurrent Slice ************************** //

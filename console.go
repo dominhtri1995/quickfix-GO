@@ -98,13 +98,12 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	SendMessage(message)
 }
 
-func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq, id string) { //Order status request
+func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //Order status request
 	var osq OrderStatusReq
 	osq.account = account
 	osq.channel = c
 	osq.count =0
-	OSRs = append(OSRs, osq)
-	orderStatusRequestMap.Store(id,&osq)
+	orderStatusRequestList.append(&osq)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header, sender)
