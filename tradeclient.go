@@ -232,9 +232,9 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
 			uap.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
 			uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
-			productType, _ := msg.Body.GetString(quickfix.Tag(167))
+			uap.productType, _ = msg.Body.GetString(quickfix.Tag(167))
 			uap.strikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
-			if (productType == "FUT") {
+			if uap.productType == "FUT"  || uap.productType == "OPT" || uap.productType == "NRG"{
 				uap.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 			}
 			uan.reports = append(uan.reports, uap)
@@ -301,6 +301,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			security.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 			security.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 			security.productType, _ = msg.Body.GetString(quickfix.Tag(167))
+			security.productMaturity,_ = msg.Body.GetString(quickfix.Tag(200))
 			security.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
 			security.securityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 			security.putOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
@@ -315,6 +316,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			security.tickValue, security.tickSize = calculateTickValueAndSize(security.exchTickSize,security.exchPointValue,0,0,"0","0")
 			//tag16552 int,tag16554 int,tag16456 int, tag16457 int,tag16458 string
 			sdr.securityList = append(sdr.securityList, security)
+			fmt.Println(sdr.count)
+			fmt.Println(len(sdr.securityList))
 			if sdr.count == len(sdr.securityList){
 				fmt.Println("receive all security definition")
 				sdr.status = "ok"
@@ -488,7 +491,7 @@ func TT_QuerySecurityDefinitionRequest(id string, symbol string, exchange string
 func getTimeOutChan() chan bool {
 	timeout := make(chan bool, 1)
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 		timeout <- true
 	}()
 	return timeout
@@ -564,6 +567,7 @@ type UAPreport struct {
 	price           string
 	side            string
 	product         string
+	productType		string
 	productMaturity string
 	exchange        string
 	securityID      string

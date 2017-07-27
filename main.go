@@ -80,16 +80,16 @@ Loop:
 				fmt.Printf("Order Replaced Successfully: %s %s at %s \n", ordStatus.side, ordStatus.symbol, ordStatus.price)
 			} else if ordStatus.status == "rejected" {
 				fmt.Printf("Order Replaced Rejected \n")
-				if (ordStatus.reason != "") {
+				if ordStatus.reason != "" {
 					fmt.Printf("Reason: %s", ordStatus.reason)
 				}
 			}
 		case "8":
-			//pass in parameters for filter, pass "" if do not want to use that criteria
-			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","CME","00A0IR00BZZ","FUT","VENUSTECH3")
+			//pass in parameters for filter, pass "" if do not want to use that criteria  //00A0IR00BZZ
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","","","","VENUSTECH3")
 			if sdr.status =="ok"{
 				for _,security := range sdr.securityList{
-					fmt.Printf("%s with tickValue: %f and tickSize %f \n",security.symbol,security.tickValue,security.tickSize)
+					fmt.Printf("%s with tickValue: %f and tickSize %f %s %s\n",security.symbol,security.tickValue,security.tickSize,security.securityAltID,security.productMaturity)
 				}
 			}else{
 				fmt.Println("error getting security definition")
