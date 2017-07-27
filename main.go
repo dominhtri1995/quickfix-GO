@@ -49,7 +49,7 @@ Loop:
 			}
 
 		case "4":
-			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT", "VENUSTECH")
+			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT", "VENUSTECH3")
 			fmt.Printf("Price :%s \n", mdr.price)
 
 		case "5":
@@ -118,6 +118,7 @@ func QueryAction() (string, error) {
 	fmt.Println("5) Cancel First working order")
 	fmt.Println("6) Cancel All working order")
 	fmt.Println("7) Replace First working order")
+	fmt.Println("8) Test Security Definition Request")
 	fmt.Println("9) Quit")
 	fmt.Print("Action: ")
 	scanner := bufio.NewScanner(os.Stdin)

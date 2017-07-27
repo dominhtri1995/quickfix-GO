@@ -354,15 +354,15 @@ func StartQuickFix() {
 	}
 
 	app := TradeClient{}
-	//fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
-	screenLogFactory := quickfix.NewScreenLogFactory()
+	fileLogFactory, err := quickfix.NewFileLogFactory(appSettings)
+	//screenLogFactory := quickfix.NewScreenLogFactory()
 
 	if err != nil {
 		fmt.Println("Error creating file log factory,", err)
 		return
 	}
 
-	initiator, err := quickfix.NewInitiator(app, quickfix.NewMemoryStoreFactory(), appSettings, screenLogFactory)
+	initiator, err := quickfix.NewInitiator(app, quickfix.NewMemoryStoreFactory(), appSettings, fileLogFactory)
 	if err != nil {
 		fmt.Printf("Unable to create Initiator: %s\n", err)
 		return
