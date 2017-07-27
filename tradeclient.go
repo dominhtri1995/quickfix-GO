@@ -10,7 +10,6 @@ import (
 	"github.com/quickfixgo/quickfix"
 	"github.com/quickfixgo/quickfix/enum"
 	"time"
-	"github.com/rs/xid"
 	"golang.org/x/sync/syncmap"
 	"sync"
 )
@@ -69,7 +68,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		account, _ := msg.Body.GetString(quickfix.Tag(1))
 		ordStatus, _ := msg.Body.GetString(quickfix.Tag(39))
 
-		if (execrefID != "3") { //NOT order status request
+		if (execrefID != "3") { //NOT order Status request
 
 			switch {
 			case ordStatus == string(enum.OrdStatus_NEW):
@@ -77,20 +76,20 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
-					order.status = "ok"
-					order.account = account
-					extractInfoExcecutionReport(order, msg) //Get all the order-related info :trade,price plapla
-					order.channel <- *order                 //Send data back to channel
-					newOrderMap.Delete(clOrdID)             // Remove Order status request from list
+					order.Status = "ok"
+					order.Account = account
+					extractInfoExcecutionReport(order, msg) //Get all the order-related info :trade,Price plapla
+					order.channel <- *order                 //Send data back to Channel
+					newOrderMap.Delete(clOrdID)             // Remove Order Status request from list
 				}
 			case ordStatus == string(enum.OrdStatus_REJECTED):
 				//rejected
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
-					order.status = "rejected"
-					order.account = account
-					order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+					order.Status = "rejected"
+					order.Account = account
+					order.Reason, _ = msg.Body.GetString(quickfix.Tag(58))
 					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					newOrderMap.Delete(clOrdID)
@@ -99,8 +98,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
-					order.status = "ok"
-					order.account = account
+					order.Status = "ok"
+					order.Account = account
 					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
@@ -109,8 +108,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
-					order.status = "ok"
-					order.account = account
+					order.Status = "ok"
+					order.Account = account
 					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
@@ -120,8 +119,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				//priceFilled,_ := msg.Body.GetInt(quickfix.Tag(31))
 				//qtyFilled,_ := msg.Body.GetInt(quickfix.Tag(32)) // qty just got filled
 				// 	totalqty,_ := msg.Body.GetString(quickfix.Tag(38))
-				// 	symbol,_ := msg.Body.GetString(quickfix.Tag(55))
-				// 	side , _ := msg.Body.GetString(quickfix.Tag(54))
+				// 	Symbol,_ := msg.Body.GetString(quickfix.Tag(55))
+				// 	Side , _ := msg.Body.GetString(quickfix.Tag(54))
 				// avgPx, _ := msg.Body.GetString(quickfix.Tag(6))
 
 			case ordStatus == string(enum.OrdStatus_FILLED):
@@ -129,59 +128,59 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				//priceFilled,_ := msg.Body.GetInt(quickfix.Tag(31))
 				//qtyFilled,_ := msg.Body.GetInt(quickfix.Tag(32)) // qty just got filled
 				// 	totalqty,_ := msg.Body.GetString(quickfix.Tag(38))
-				// 	symbol,_ := msg.Body.GetString(quickfix.Tag(55))
-				// 	side , _ := msg.Body.GetString(quickfix.Tag(54))
+				// 	Symbol,_ := msg.Body.GetString(quickfix.Tag(55))
+				// 	Side , _ := msg.Body.GetString(quickfix.Tag(54))
 				// avgPx, _ := msg.Body.GetString(quickfix.Tag(6))
 
 			}
 		} else {
-			//Order status request
+			//Order Status request
 			account, err := msg.Body.GetString(quickfix.Tag(1))
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16728))
 			for osr := range orderStatusRequestList.Iter() {
 				orderStatusRequest, _ := osr.Value.(*OrderStatusReq)
-				if err == nil && account == orderStatusRequest.account { // GET book order not single order status request
-					orderStatusRequest.count, _ = strconv.Atoi(numPosReports)
+				if err == nil && account == orderStatusRequest.Account { // GET book order not single order Status request
+					orderStatusRequest.Count, _ = strconv.Atoi(numPosReports)
 
 					var order WorkingOrder
-					order.orderID, _ = msg.Body.GetString(quickfix.Tag(37))
-					order.price, _ = msg.Body.GetString(quickfix.Tag(44))
-					order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
-					order.filledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
-					order.originalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
-					order.ordStatus, _ = msg.Body.GetString(quickfix.Tag(39))
-					order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-					order.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-					order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
-					order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
-					order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
-					order.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
-					order.text, _ = msg.Body.GetString(quickfix.Tag(58))
-					order.strikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+					order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+					order.Price, _ = msg.Body.GetString(quickfix.Tag(44))
+					order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+					order.FilledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+					order.OriginalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
+					order.OrdStatus, _ = msg.Body.GetString(quickfix.Tag(39))
+					order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+					order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+					order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+					order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
+					order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+					order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+					order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
+					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 					putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
 
 					if putOrCall == 0 {
-						order.putOrCall = "Put"
+						order.PutOrCall = "Put"
 					} else {
-						order.putOrCall = "Call"
+						order.PutOrCall = "Call"
 					}
 
-					if order.sideNum == "1" {
-						order.side = "Buy"
+					if order.SideNum == "1" {
+						order.Side = "Buy"
 					} else {
-						order.side = "Sell"
+						order.Side = "Sell"
 					}
-					order.productType, _ = msg.Body.GetString(quickfix.Tag(167))
-					if order.productType == "FUT" || order.productType == "OPT" || order.productType == "NRG" {
-						order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+					order.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+					if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
+						order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
-					orderStatusRequest.workingOrders = append(orderStatusRequest.workingOrders, order)
+					orderStatusRequest.WorkingOrders = append(orderStatusRequest.WorkingOrders, order)
 				}
 
-				if orderStatusRequest.count == len(orderStatusRequest.workingOrders) {
+				if orderStatusRequest.Count == len(orderStatusRequest.WorkingOrders) {
 					// Receive all working orders
-					fmt.Printf("Receve all working orders : %d for account %s \n", len(orderStatusRequest.workingOrders), orderStatusRequest.account)
-					orderStatusRequest.status = "ok"
+					fmt.Printf("Receve all working orders : %d for Account %s \n", len(orderStatusRequest.WorkingOrders), orderStatusRequest.Account)
+					orderStatusRequest.Status = "ok"
 					orderStatusRequest.channel <- *orderStatusRequest
 					orderStatusRequestList.remove(osr.Index)
 					break
@@ -192,8 +191,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 		if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 			order, _ := order.(*OrderConfirmation)
-			order.status = "rejected"
-			order.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+			order.Status = "rejected"
+			order.Reason, _ = msg.Body.GetString(quickfix.Tag(58))
 			extractInfoExcecutionReport(order, msg)
 			order.channel <- *order
 			cancelAndUpdateMap.Delete(clOrdID)
@@ -205,54 +204,54 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		if uan, ok := uanMap.Load(uid); ok {
 			uan, _ := uan.(*UAN)
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16727))
-			uan.count, _ = strconv.Atoi(numPosReports)
+			uan.Count, _ = strconv.Atoi(numPosReports)
 
 			//Create a new UAP object
 			var uap UAPreport
-			uap.quantity, _ = msg.Body.GetString(quickfix.Tag(32))
-			q, _ := strconv.Atoi(uap.quantity)
+			uap.Quantity, _ = msg.Body.GetString(quickfix.Tag(32))
+			q, _ := strconv.Atoi(uap.Quantity)
 
 			putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
 
 			if putOrCall == 0 {
-				uap.putOrCall = "Put"
+				uap.PutOrCall = "Put"
 			} else {
-				uap.putOrCall = "Call"
+				uap.PutOrCall = "Call"
 			}
 
 			if (q > 0) {
-				uap.side = "Buy"
+				uap.Side = "Buy"
 			} else {
-				uap.side = "Sell"
-				uap.quantity = string(q * (-1))
+				uap.Side = "Sell"
+				uap.Quantity = string(q * (-1))
 			}
-			uap.accountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
-			uap.account, _ = msg.Body.GetString(quickfix.Tag(1))
-			// fmt.Println(uap.accountGroup)
-			uap.price, _ = msg.Body.GetString(quickfix.Tag(31))
-			uap.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
-			uap.product, _ = msg.Body.GetString(quickfix.Tag(55))
-			uap.productType, _ = msg.Body.GetString(quickfix.Tag(167))
-			uap.strikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
-			if uap.productType == "FUT"  || uap.productType == "OPT" || uap.productType == "NRG"{
-				uap.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+			uap.AccountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
+			uap.Account, _ = msg.Body.GetString(quickfix.Tag(1))
+			// fmt.Println(uap.AccountGroup)
+			uap.Price, _ = msg.Body.GetString(quickfix.Tag(31))
+			uap.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+			uap.Product, _ = msg.Body.GetString(quickfix.Tag(55))
+			uap.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+			uap.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+			if uap.ProductType == "FUT"  || uap.ProductType == "OPT" || uap.ProductType == "NRG"{
+				uap.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 			}
-			uan.reports = append(uan.reports, uap)
+			uan.Reports = append(uan.Reports, uap)
 
 			//UAN Complete
 			posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
-			if len(uan.reports) == uan.count {
-				for j := 0; j < len(uan.reports); j++ {
-					if posReqType == "4" && uan.accountGroup != uan.reports[j].accountGroup {
-						uan.reports = append(uan.reports[:j], uan.reports[j+1:]...)
+			if len(uan.Reports) == uan.Count {
+				for j := 0; j < len(uan.Reports); j++ {
+					if posReqType == "4" && uan.AccountGroup != uan.Reports[j].AccountGroup {
+						uan.Reports = append(uan.Reports[:j], uan.Reports[j+1:]...)
 						j--
-					} else if posReqType == "0" && uan.account != uan.reports[j].account {
-						uan.reports = append(uan.reports[:j], uan.reports[j+1:]...)
+					} else if posReqType == "0" && uan.Account != uan.Reports[j].Account {
+						uan.Reports = append(uan.Reports[:j], uan.Reports[j+1:]...)
 						j--
 					}
 				}
-				fmt.Printf("Number of positions :%d for trader %s \n", len(uan.reports), uan.accountGroup)
-				uan.channel <- *uan // return the result to channel
+				fmt.Printf("Number of positions :%d for trader %s \n", len(uan.Reports), uan.AccountGroup)
+				uan.channel <- *uan // return the result to Channel
 				uanMap.Delete(uid)
 			}
 		}
@@ -261,21 +260,21 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		if md, ok := marketDataRequestMap.Load(uid); ok {
 			md, _ := md.(*MarketDataReq)
 			//create market data reqest response
-			md.price, err = msg.Body.GetString(quickfix.Tag(270))
+			md.Price, err = msg.Body.GetString(quickfix.Tag(270))
 			if ( err != nil) {
-				md.price = "0" //Price not available
-				md.status = "rejected"
-				md.reason = "price not available"
+				md.Price = "0" //Price not available
+				md.Status = "rejected"
+				md.Reason = "Price not available"
 			} else {
-				md.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-				md.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+				md.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+				md.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 				productType, _ := msg.Body.GetString(quickfix.Tag(167))
 				if (productType == "FUT") {
-					md.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+					md.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 				}
 
-				md.priceType, _ = msg.Body.GetString(quickfix.Tag(269))
-				md.status = "ok"
+				md.PriceType, _ = msg.Body.GetString(quickfix.Tag(269))
+				md.Status = "ok"
 			}
 
 			md.channel <- *md
@@ -285,8 +284,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		uid, _ := msg.Body.GetString(quickfix.Tag(262))
 		if md, ok := marketDataRequestMap.Load(uid); ok {
 			md, _ := md.(*MarketDataReq)
-			md.status = "rejected"
-			md.reason, _ = msg.Body.GetString(quickfix.Tag(58))
+			md.Status = "rejected"
+			md.Reason, _ = msg.Body.GetString(quickfix.Tag(58))
 			md.channel <- *md
 			marketDataRequestMap.Delete(uid)
 		}
@@ -295,32 +294,32 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		count,_ := msg.Body.GetInt(quickfix.Tag(393))
 		if sdr, ok := securityDefinitionMap.Load(id); ok {
 			sdr, _ := sdr.(*SecurityDefinitionReq)
-			sdr.count =count
+			sdr.Count =count
 
 			var security Security
-			security.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-			security.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-			security.productType, _ = msg.Body.GetString(quickfix.Tag(167))
-			security.productMaturity,_ = msg.Body.GetString(quickfix.Tag(200))
-			security.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
-			security.securityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
-			security.putOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
-			security.strikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+			security.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+			security.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+			security.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+			security.ProductMaturity,_ = msg.Body.GetString(quickfix.Tag(200))
+			security.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+			security.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
+			security.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
+			security.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 
 			exchTickSize, _ := msg.Body.GetString(quickfix.Tag(16552))
 			exchPointValue, _ := msg.Body.GetString(quickfix.Tag(16554))
-			security.exchTickSize,_ = strconv.ParseFloat(exchTickSize,64)
-			security.exchPointValue,_  = strconv.ParseFloat(exchPointValue,64)
-			security.numTicktblEntries,_ = msg.Body.GetInt(quickfix.Tag(16456))
+			security.ExchTickSize,_ = strconv.ParseFloat(exchTickSize,64)
+			security.ExchPointValue,_  = strconv.ParseFloat(exchPointValue,64)
+			security.NumTicktblEntries,_ = msg.Body.GetInt(quickfix.Tag(16456))
 
-			security.tickValue, security.tickSize = calculateTickValueAndSize(security.exchTickSize,security.exchPointValue,0,0,"0","0")
+			security.TickValue, security.TickSize = calculateTickValueAndSize(security.ExchTickSize,security.ExchPointValue,0,0,"0","0")
 			//tag16552 int,tag16554 int,tag16456 int, tag16457 int,tag16458 string
-			sdr.securityList = append(sdr.securityList, security)
-			fmt.Println(sdr.count)
-			fmt.Println(len(sdr.securityList))
-			if sdr.count == len(sdr.securityList){
+			sdr.SecurityList = append(sdr.SecurityList, security)
+			fmt.Println(sdr.Count)
+			fmt.Println(len(sdr.SecurityList))
+			if sdr.Count == len(sdr.SecurityList){
 				fmt.Println("receive all security definition")
-				sdr.status = "ok"
+				sdr.Status = "ok"
 				sdr.channel <- *sdr
 				securityDefinitionMap.Delete(id)
 			}
@@ -374,9 +373,9 @@ func StartQuickFix() {
 
 }
 
-// Wrapper fro Query function in console.go, using channel to wait for all message come through.
+// Wrapper fro Query function in console.go, using Channel to wait for all message come through.
 /*
-/* Use these function to avoid using channel in main code
+/* Use these function to avoid using Channel in main code
 /*	Sepearte TT from mistro code
 /*  For easy debug and maintain code with TT
  */
@@ -384,31 +383,32 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	c := make(chan UAN)
 	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
 
-	var uan1 UAN
-	c1 := make(chan UAN)
-	QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
-
 	select {
 	case uan = <-c:
 
 	case <-getTimeOutChan():
 		var uan UAN
-		uan.status = "rejected"
-		uan.reason = "time out"
+		uan.Status = "rejected"
+		uan.Reason = "time out"
 	}
-	select {
-	case uan1 = <-c1:
-		if (uan.status != "rejected") {
-			uan.reports = append(uan.reports, uan1.reports[0:]...)
-			uan.count = len(uan.reports)
-			uan.account = uan1.account
-			uan.status = "ok"
-		}
-	case <-getTimeOutChan():
-		var uan UAN
-		uan.status = "rejected"
-		uan.reason = "time out"
-	}
+
+	//var uan1 UAN
+	//c1 := make(chan UAN)
+	//QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
+	//
+	//select {
+	//case uan1 = <-c1:
+	//	if (uan.Status != "rejected") {
+	//		uan.Reports = append(uan.Reports, uan1.Reports[0:]...)
+	//		uan.Count = len(uan.Reports)
+	//		uan.Account = uan1.Account
+	//		uan.Status = "ok"
+	//	}
+	//case <-getTimeOutChan():
+	//	var uan UAN
+	//	uan.Status = "rejected"
+	//	uan.Reason = "time out"
+	//}
 
 	return uan
 }
@@ -419,8 +419,8 @@ func TT_NewOrderSingle(id string, account string, side string, ordType string, q
 	case ordStatus = <-c:
 		return ordStatus
 	case <-getTimeOutChan():
-		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
 	}
 	return ordStatus
 }
@@ -432,8 +432,8 @@ func TT_WorkingOrder(account string, sender string) (wo OrderStatusReq) {
 	case wo = <-c:
 		return wo
 	case <-getTimeOutChan():
-		wo.status = "rejected"
-		wo.reason = "time out"
+		wo.Status = "rejected"
+		wo.Reason = "time out"
 	}
 	return wo
 }
@@ -444,8 +444,8 @@ func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderCo
 	case ordStatus = <-c:
 		return ordStatus
 	case <-getTimeOutChan():
-		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
 	}
 	return ordStatus
 }
@@ -456,8 +456,8 @@ func TT_OrderCancelReplace(orderID string, newid string, account string, side st
 	case ordStatus = <-c:
 		return ordStatus
 	case <-getTimeOutChan():
-		ordStatus.status = "rejected"
-		ordStatus.reason = "time out"
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
 	}
 	return ordStatus
 }
@@ -469,8 +469,8 @@ func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, m
 	case mdr = <-c:
 		return mdr
 	case <-getTimeOutChan():
-		mdr.status = "rejected"
-		mdr.reason = "time out"
+		mdr.Status = "rejected"
+		mdr.Reason = "time out"
 	}
 	return mdr
 }
@@ -481,8 +481,8 @@ func TT_QuerySecurityDefinitionRequest(id string, symbol string, exchange string
 	case sdr = <-c:
 		return sdr
 	case <-getTimeOutChan():
-		sdr.status = "rejected"
-		sdr.reason = "time out"
+		sdr.Status = "rejected"
+		sdr.Reason = "time out"
 	}
 
 	return sdr
@@ -505,12 +505,12 @@ func calculateTickValueAndSize(tag16552 float64, tag16554 float64, tag16456 int,
 			return -1, -1
 		}
 		//baseTickSize := tag16552
-		//p := float64(price)
+		//p := float64(Price)
 		//maxPirce := float64(tag16458)
 		//for i := 0; i < tag16456; i++ {
 		//	if p < maxPirce {
-		//		tickSize = baseTickSize * tag16457
-		//		tickValue = tickSize * tag16554
+		//		TickSize = baseTickSize * tag16457
+		//		TickValue = TickSize * tag16554
 		//		break
 		//	}
 		//}
@@ -520,150 +520,150 @@ func calculateTickValueAndSize(tag16552 float64, tag16554 float64, tag16456 int,
 }
 
 func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message) {
-	order.price, _ = msg.Body.GetString(quickfix.Tag(44))     //not available for market order
-	order.quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
-	order.symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-	order.exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-	order.productType, _ = msg.Body.GetString(quickfix.Tag(167))
-	order.ordType, _ = msg.Body.GetString(quickfix.Tag(40))
-	order.sideNum, _ = msg.Body.GetString(quickfix.Tag(54))
-	order.timeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
-	order.securityID, _ = msg.Body.GetString(quickfix.Tag(48))
-	order.strikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+	order.Price, _ = msg.Body.GetString(quickfix.Tag(44))     //not available for market order
+	order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+	order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+	order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+	order.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+	order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
+	order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+	order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+	order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+	order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 	putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
 
 	if putOrCall == 0 {
-		order.putOrCall = "Put"
+		order.PutOrCall = "Put"
 	} else {
-		order.putOrCall = "Call"
+		order.PutOrCall = "Call"
 	}
-	if order.sideNum == "1" {
-		order.side = "Buy"
+	if order.SideNum == "1" {
+		order.Side = "Buy"
 	} else {
-		order.side = "Sell"
+		order.Side = "Sell"
 	}
-	if order.productType == "FUT" || order.productType == "OPT" || order.productType == "NRG" {
-		order.productMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+	if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
+		order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 	}
 }
 
 type TradeClient struct {
 }
 type UAN struct {
-	id           string
-	account      string
-	accountGroup string
-	count        int
+	Id           string
+	Account      string
+	AccountGroup string
+	Count        int
 	channel      chan UAN
-	reports      []UAPreport
-	status       string
-	reason       string
+	Reports      []UAPreport
+	Status       string
+	Reason       string
 }
 type UAPreport struct {
-	id              string
-	accountGroup    string
-	account         string
-	quantity        string
-	price           string
-	side            string
-	product         string
-	productType		string
-	productMaturity string
-	exchange        string
-	securityID      string
-	putOrCall       string //for option only
-	strikePrice     string //for option only
+	Id              string
+	AccountGroup    string
+	Account         string
+	Quantity        string
+	Price           string
+	Side            string
+	Product         string
+	ProductType     string
+	ProductMaturity string
+	Exchange        string
+	SecurityID      string
+	PutOrCall       string //for option only
+	StrikePrice     string //for option only
 }
 
 type OrderStatusReq struct {
-	account       string
-	count         int
+	Account       string
+	Count         int
 	channel       chan OrderStatusReq
-	workingOrders []WorkingOrder
-	status        string
-	reason        string
+	WorkingOrders []WorkingOrder
+	Status        string
+	Reason        string
 }
 type WorkingOrder struct {
-	orderID          string // Used to cancel order or request order status later
-	price            string
-	ordStatus        string
-	quantity         string
-	filledQuantity   string
-	originalQuantity string
-	symbol           string
-	productMaturity  string
-	exchange         string
-	productType      string
-	securityID       string
-	side             string
-	sideNum          string
-	ordType          string
-	timeInForce      string
-	text             string
-	putOrCall        string //for option only
-	strikePrice      string //for option only
+	OrderID          string // Used to cancel order or request order Status later
+	Price            string
+	OrdStatus        string
+	Quantity         string
+	FilledQuantity   string
+	OriginalQuantity string
+	Symbol           string
+	ProductMaturity  string
+	Exchange         string
+	ProductType      string
+	SecurityID       string
+	Side             string
+	SideNum          string
+	OrdType          string
+	TimeInForce      string
+	Text             string
+	PutOrCall        string //for option only
+	StrikePrice      string //for option only
 }
 
 type OrderConfirmation struct {
-	id              string
-	account         string
-	status          string
-	reason          string
-	symbol          string
-	productMaturity string
-	exchange        string
-	productType     string
-	securityID      string
-	side            string
-	price           string
-	quantity        string
-	timeInForce     string
-	ordType         string
-	sideNum         string
+	Id              string
+	Account         string
+	Status          string
+	Reason          string
+	Symbol          string
+	ProductMaturity string
+	Exchange        string
+	ProductType     string
+	SecurityID      string
+	Side            string
+	Price           string
+	Quantity        string
+	TimeInForce     string
+	OrdType         string
+	SideNum         string
 	channel         chan OrderConfirmation
-	putOrCall       string //for option only
-	strikePrice     string //for option only
+	PutOrCall       string //for option only
+	StrikePrice     string //for option only
 }
 
 type MarketDataReq struct {
-	id              string
-	priceType       string
-	price           string
-	symbol          string
-	productMaturity string
-	exchange        string
-	marketDepth     string
+	Id              string
+	PriceType       string
+	Price           string
+	Symbol          string
+	ProductMaturity string
+	Exchange        string
+	MarketDepth     string
 
 	channel chan MarketDataReq
-	status  string
-	reason  string
+	Status  string
+	Reason  string
 }
 
 type SecurityDefinitionReq struct {
-	id           string
-	count        int
+	Id           string
+	Count        int
 	channel      chan SecurityDefinitionReq
-	status       string
-	reason       string
-	securityList []Security
+	Status       string
+	Reason       string
+	SecurityList []Security
 }
 type Security struct {
-	symbol          string
-	productMaturity string
-	exchange        string
-	productType     string
-	securityID      string
-	securityAltID   string
-	putOrCall       string //for option only
-	strikePrice     string //for option only
-	currency        string
+	Symbol          string
+	ProductMaturity string
+	Exchange        string
+	ProductType     string
+	SecurityID      string
+	SecurityAltID   string
+	PutOrCall       string //for option only
+	StrikePrice     string //for option only
+	Currency        string
 
-	exchTickSize   float64
-	exchPointValue float64
-	numTicktblEntries int
+	ExchTickSize      float64
+	ExchPointValue    float64
+	NumTicktblEntries int
 
-	tickSize       float64
-	tickValue      float64
+	TickSize  float64
+	TickValue float64
 }
 
 //********* Concurrent SLice ************************** //
@@ -692,7 +692,7 @@ func (cs *ConcurrentSlice) remove(index int) {
 }
 
 // Iterates over the items in the concurrent slice
-// Each item is sent over a channel, so that
+// Each item is sent over a Channel, so that
 // we can iterate over the slice using the builin range keyword
 func (cs *ConcurrentSlice) Iter() <-chan ConcurrentSliceItem {
 	c := make(chan ConcurrentSliceItem)

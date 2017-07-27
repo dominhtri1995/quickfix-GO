@@ -19,81 +19,81 @@ Loop:
 		}
 		switch action {
 		case "1":
-			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH3")
-			if uan.status == "rejected" {
-				fmt.Printf("Error when getting UAN: %s", uan.reason)
+			uan := TT_PAndLSOD(xid.New().String(), "venustech3", "TTORDFA224222", "VENUSTECH3")
+			if uan.Status == "rejected" {
+				fmt.Printf("Error when getting UAN: %s", uan.Reason)
 				continue
 			}
-			fmt.Printf("We have %d position in total for account %s and accountgroup %s \n", len(uan.reports), uan.account, uan.accountGroup)
-			for _, uap := range uan.reports {
-				fmt.Printf("%s \n", uap.product)
+			fmt.Printf("We have %d position in total for Account %s and accountgroup %s \n", len(uan.Reports), uan.Account, uan.AccountGroup)
+			for _, uap := range uan.Reports {
+				fmt.Printf("%s \n", uap.Product)
 			}
 		case "2":
 			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT", "1", "VENUSTECH3")
-			if ordStatus.status == "ok" {
-				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.side, ordStatus.symbol, ordStatus.price)
-			} else if ordStatus.status == "rejected" {
+			if ordStatus.Status == "ok" {
+				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
+			} else if ordStatus.Status == "rejected" {
 				fmt.Printf("Order Rejected \n")
-				if ordStatus.reason != "" {
-					fmt.Printf("Reason: %s", ordStatus.reason)
+				if ordStatus.Reason != "" {
+					fmt.Printf("Reason: %s", ordStatus.Reason)
 				}
 			}
 		case "3":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3")
-			if wo.status != "rejected" {
-				for _, order := range wo.workingOrders {
-					fmt.Printf("%s \n", order.symbol)
+			if wo.Status != "rejected" {
+				for _, order := range wo.WorkingOrders {
+					fmt.Printf("%s \n", order.Symbol)
 				}
 			} else {
-				fmt.Printf("Error when getting Working Orders: %s", wo.reason)
+				fmt.Printf("Error when getting Working Orders: %s", wo.Reason)
 			}
 
 		case "4":
 			mdr := TT_MarketDataRequest(xid.New().String(), "0", 0, "2", "BZ", "CME", "201709", "FUT", "VENUSTECH3")
-			fmt.Printf("Price :%s \n", mdr.price)
+			fmt.Printf("Price :%s \n", mdr.Price)
 
 		case "5":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
 
-			ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[0].orderID, "VENUSTECH3") // Cancel the first working order
-			if ordStatus.status == "ok" {
-				fmt.Printf("Order  %s %s at %s Cancelled Successfully \n", ordStatus.side, ordStatus.symbol, ordStatus.price)
-			} else if ordStatus.status == "rejected" {
+			ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[0].OrderID, "VENUSTECH3") // Cancel the first working order
+			if ordStatus.Status == "ok" {
+				fmt.Printf("Order  %s %s at %s Cancelled Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
+			} else if ordStatus.Status == "rejected" {
 				fmt.Printf("Order Cancelled Rejected \n")
-				if ordStatus.reason != "" {
-					fmt.Printf("Reason: %s", ordStatus.reason)
+				if ordStatus.Reason != "" {
+					fmt.Printf("Reason: %s", ordStatus.Reason)
 				}
 			}
 		case "6":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
-			for i := range wo.workingOrders {
-				ordStatus := TT_OrderCancel(xid.New().String(), wo.workingOrders[i].orderID, "VENUSTECH3") // Cancel the first working order
-				fmt.Printf("Status: %s \n", ordStatus.status)
+			for i := range wo.WorkingOrders {
+				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH3") // Cancel the first working order
+				fmt.Printf("Status: %s \n", ordStatus.Status)
 			}
 		case "7":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
 			// Replace/Edit the first working order
-			order := wo.workingOrders[0]
-			//Change quantity of that working order to 962
-			ordStatus := TT_OrderCancelReplace(order.orderID, xid.New().String(), wo.account, order.sideNum, order.ordType, "962", order.price, order.symbol, order.exchange, order.productMaturity, order.productType, order.timeInForce, "VENUSTECH3")
-			if ordStatus.status == "ok" {
-				fmt.Printf("Order Replaced Successfully: %s %s at %s \n", ordStatus.side, ordStatus.symbol, ordStatus.price)
-			} else if ordStatus.status == "rejected" {
+			order := wo.WorkingOrders[0]
+			//Change Quantity of that working order to 962
+			ordStatus := TT_OrderCancelReplace(order.OrderID, xid.New().String(), wo.Account, order.SideNum, order.OrdType, "962", order.Price, order.Symbol, order.Exchange, order.ProductMaturity, order.ProductType, order.TimeInForce, "VENUSTECH3")
+			if ordStatus.Status == "ok" {
+				fmt.Printf("Order Replaced Successfully: %s %s at %s \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
+			} else if ordStatus.Status == "rejected" {
 				fmt.Printf("Order Replaced Rejected \n")
-				if ordStatus.reason != "" {
-					fmt.Printf("Reason: %s", ordStatus.reason)
+				if ordStatus.Reason != "" {
+					fmt.Printf("Reason: %s", ordStatus.Reason)
 				}
 			}
 		case "8":
 			//pass in parameters for filter, pass "" if do not want to use that criteria  //00A0IR00BZZ
-			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","","","","VENUSTECH3")
-			if sdr.status =="ok"{
-				for _,security := range sdr.securityList{
-					fmt.Printf("%s with tickValue: %f and tickSize %f %s %s\n",security.symbol,security.tickValue,security.tickSize,security.securityAltID,security.productMaturity)
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","CME","","FUT","VENUSTECH3")
+			if sdr.Status =="ok"{
+				for _,security := range sdr.SecurityList {
+					fmt.Printf("%s with TickValue: %f and TickSize %f %s %s\n",security.Symbol,security.TickValue,security.TickSize,security.SecurityAltID,security.ProductMaturity)
 				}
 			}else{
 				fmt.Println("error getting security definition")
-				fmt.Println("Reason: ",sdr.reason)
+				fmt.Println("Reason: ",sdr.Reason)
 			}
 		case "9":
 			break Loop

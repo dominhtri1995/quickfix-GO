@@ -16,10 +16,10 @@ import (
 func QueryPAndLSOD(id string, accountGroup string,sender string, c chan UAN) (err error) {
 	//UANS
 	var u UAN
-	u.id = id
-	u.count=0
+	u.Id = id
+	u.Count =0
 	u.channel =c
-	u.accountGroup = accountGroup
+	u.AccountGroup = accountGroup
 
 	uanMap.Store(id,&u)
 
@@ -36,10 +36,10 @@ func QueryPAndLSOD(id string, accountGroup string,sender string, c chan UAN) (er
 func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err error) {
 	//UANS
 	var u UAN
-	u.id = id
-	u.count=0
+	u.Id = id
+	u.Count =0
 	u.channel =c
-	u.account = account
+	u.Account = account
 	uanMap.Store(id,&u)
 
 	message := quickfix.NewMessage()
@@ -58,7 +58,7 @@ func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err err
 func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string,c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
-	orderQuery.id = id
+	orderQuery.Id = id
 	orderQuery.channel =c
 	newOrderMap.Store(id,&orderQuery)
 
@@ -98,11 +98,11 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	SendMessage(message)
 }
 
-func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //Order status request
+func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //Order Status request
 	var osq OrderStatusReq
-	osq.account = account
+	osq.Account = account
 	osq.channel = c
-	osq.count =0
+	osq.Count =0
 	orderStatusRequestList.append(&osq)
 
 	message := quickfix.NewMessage()
@@ -116,7 +116,7 @@ func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //
 func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
-	cancelOrderQuery.id = id
+	cancelOrderQuery.Id = id
 	cancelOrderQuery.channel =c
 	cancelAndUpdateMap.Store(id,&cancelOrderQuery)
 
@@ -132,7 +132,7 @@ func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfi
 func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string,productType string, timeInForce string,sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
-	cancelOrderQuery.id = newid
+	cancelOrderQuery.Id = newid
 	cancelOrderQuery.channel =c
 	cancelAndUpdateMap.Store(newid,&cancelOrderQuery)
 
@@ -179,14 +179,14 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType string,sender string, c chan MarketDataReq) {
 
 	var md MarketDataReq
-	md.id =id
+	md.Id =id
 	md.channel = c
-	md.symbol = symbol
-	md.priceType =string(priceType)
-	md.productMaturity=maturity
-	md.exchange =exchange
-	md.marketDepth = string(marketDepth)
-	md.symbol = symbol
+	md.Symbol = symbol
+	md.PriceType =string(priceType)
+	md.ProductMaturity =maturity
+	md.Exchange =exchange
+	md.MarketDepth = string(marketDepth)
+	md.Symbol = symbol
 	marketDataRequestMap.Store(id,&md)
 
 	message := quickfix.NewMessage()
@@ -196,8 +196,8 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	message.Body.Set(field.NewSubscriptionRequestType(requestType))
 	message.Body.Set(field.NewMarketDepth(marketDepth))
 	message.Body.Set(field.NewAggregatedBook(true))   //always true
-	message.Body.Set(field.NewNoMDEntryTypes(1))      //number of price types
-	message.Body.Set(field.NewMDEntryType(priceType)) // price type
+	message.Body.Set(field.NewNoMDEntryTypes(1))      //number of Price types
+	message.Body.Set(field.NewMDEntryType(priceType)) // Price type
 
 	////INStrument Block
 	mdr := fix42mdq.FromMessage(message)
@@ -221,7 +221,7 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string,sender string, c chan SecurityDefinitionReq) {
 
 	var sdr SecurityDefinitionReq
-	sdr.id = id
+	sdr.Id = id
 	sdr.channel =c
 	securityDefinitionMap.Store(id,&sdr)
 
