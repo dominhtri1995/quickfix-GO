@@ -19,18 +19,19 @@ Loop:
 		}
 		switch action {
 		case "1":
-			uan := TT_PAndLSOD(xid.New().String(), "venustech3", "TTORDFA224222", "VENUSTECH3")
+			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH3")
 			if uan.Status == "rejected" {
 				fmt.Printf("Error when getting UAN: %s", uan.Reason)
 				continue
 			}
 			fmt.Printf("We have %d position in total for Account %s and accountgroup %s \n", len(uan.Reports), uan.Account, uan.AccountGroup)
 			for _, uap := range uan.Reports {
-				fmt.Printf("%s \n", uap.Product)
+				fmt.Printf("%s %s %s\n",uap.Side, uap.SecurityAltID,uap.Price)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "500", "4570", "BZ", "CME", "201709", "FUT", "1", "VENUSTECH3")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "4", "50", "250125","250000", "ES", "CME", "201709", "FUT", "1", "VENUSTECH3")
 			if ordStatus.Status == "ok" {
+				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
 			} else if ordStatus.Status == "rejected" {
 				fmt.Printf("Order Rejected \n")
@@ -86,19 +87,35 @@ Loop:
 			}
 		case "8":
 			//pass in parameters for filter, pass "" if do not want to use that criteria  //00A0IR00BZZ
-			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZ","CME","","FUT","VENUSTECH3")
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZO","CME","","OPT","VENUSTECH3")
 			if sdr.Status =="ok"{
 				for _,security := range sdr.SecurityList {
-					fmt.Printf("%s with TickValue: %f and TickSize %f %s %s\n",security.Symbol,security.TickValue,security.TickSize,security.SecurityAltID,security.ProductMaturity)
+					fmt.Printf("%s with TickValue: %f and TickSize %f %s %s %s\n",security.Symbol,security.TickValue,security.TickSize,security.SecurityAltID,security.ProductMaturity, security.Exchange)
 				}
 			}else{
 				fmt.Println("error getting security definition")
-				fmt.Println("Reason: ",sdr.Reason)
+				fmt.Printf("Reason: %s \n",sdr.Reason)
 			}
 		case "9":
 			break Loop
+		case "19"://test ordertype
+			numbers := []string{"5","B","J","O","Q","R"}
+			for _,n := range numbers{
+				ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "50", "247825","2500222", "ES", "CME", "201709", "FUT", n, "VENUSTECH3")
+				if ordStatus.Status == "ok" {
+					fmt.Println(ordStatus.Id)
+					fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
+				} else if ordStatus.Status == "rejected" {
+					fmt.Printf("Order Rejected \n")
+					if ordStatus.Reason != "" {
+						fmt.Printf("Reason: %s\n", ordStatus.Reason)
+					}
+				}
+			}
+
+
 		default:
-			cmd := exec.Command("clear") //Linux example, its tested
+			cmd := exec.Command("clear") //linux only
 			cmd.Stdout = os.Stdout
 			cmd.Run()
 		}

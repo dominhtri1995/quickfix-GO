@@ -165,17 +165,17 @@
               <field name="UnderlyingSymbol" required="N" />
               <field name="UnderlyingSecurityID" required="N" />
               <field name="UnderlyingSecurityType" required="N" />
+              <field name="UnderlyingSecurityExchange" required="N" />
+              <field name="UnderlyingSecurityAltID" required="N" />
+              <field name="UnderlyingCurrency" required="N" />
               <field name="UnderlyingMaturityMonthYear" required="N" />
+              <field name="UnderlyingMaturityDay" required="N" />
+              <field name="RatioQty" required="N" />
+              <field name="Side" required="N" />
               <field name="UnderlyingStrikePrice" required="N" />
               <field name="UnderlyingPutOrCall" required="N" />
-              <field name="UnderlyingMaturityDay" required="N" />
               <field name="UnderlyingOptAttribute" required="N" />
-              <field name="UnderlyingSecurityExchange" required="N" />                
-              <field name="UnderlyingSecurityAltID" required="N" />    
-              <field name="UnderlyingDeliveryTerm" required="N" />                
-              <field name="Side" required="N" />            
-              <field name="RatioQty" required="N" />
-              <field name="UnderlyingCurrency" required="N" />                
+              <field name="UnderlyingDeliveryTerm" required="N" />
               <field name="LegPrice" required="N" />
           </group>
           <field name="TotalNumSecurities" required="Y" />            

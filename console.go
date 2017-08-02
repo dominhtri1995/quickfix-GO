@@ -13,18 +13,18 @@ import (
 	fix42mdq "github.com/quickfixgo/quickfix/fix42/marketdatarequest"
 )
 
-func QueryPAndLSOD(id string, accountGroup string,sender string, c chan UAN) (err error) {
+func QueryPAndLSOD(id string, accountGroup string, sender string, c chan UAN) (err error) {
 	//UANS
 	var u UAN
 	u.Id = id
-	u.Count =0
-	u.channel =c
+	u.Count = 0
+	u.channel = c
 	u.AccountGroup = accountGroup
 
-	uanMap.Store(id,&u)
+	uanMap.Store(id, &u)
 
 	message := quickfix.NewMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	message.Header.SetString(quickfix.Tag(35), "UAN")
 	message.Body.SetString(quickfix.Tag(16710), id) // uniqueID
 	message.Body.SetInt(quickfix.Tag(16724), 4)
@@ -33,17 +33,17 @@ func QueryPAndLSOD(id string, accountGroup string,sender string, c chan UAN) (er
 
 	return
 }
-func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err error) {
+func QueryPAndLPos(id string, account string, sender string, c chan UAN) (err error) {
 	//UANS
 	var u UAN
 	u.Id = id
-	u.Count =0
-	u.channel =c
+	u.Count = 0
+	u.channel = c
 	u.Account = account
-	uanMap.Store(id,&u)
+	uanMap.Store(id, &u)
 
 	message := quickfix.NewMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	message.Header.SetString(quickfix.Tag(35), "UAN")
 	message.Body.SetString(quickfix.Tag(16710), id) // uniqueID
 	message.Body.SetInt(quickfix.Tag(16724), 0)
@@ -55,13 +55,12 @@ func QueryPAndLPos(id string, account string,sender string, c chan UAN) (err err
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string,c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.Id = id
-	orderQuery.channel =c
-	newOrderMap.Store(id,&orderQuery)
-
+	orderQuery.channel = c
+	newOrderMap.Store(id, &orderQuery)
 
 	var ordType field.OrdTypeField
 	ordType.FIXString = quickfix.FIXString(ordtype)
@@ -76,33 +75,65 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 
 	var timeInForceField field.TimeInForceField
 	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
-	order.Set(timeInForceField)  //0 for day and 1 for GTC
+	order.Set(timeInForceField) //0 for day and 1 for GTC
+	if timeInForce == "6"{
+		order.SetExpireDate("20170810")
+	}
 
 	qty, _ := decimal.NewFromString(quantity)
 	order.SetOrderQty(qty, 2)
-	if(ordtype != "1") {
-		price, _ := decimal.NewFromString(pri)
-		order.SetPrice(price, 2)
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		order.SetPrice(limitPrice, 2)
+	case "3":
+		order.SetStopPx(stopPrice, 2)
+	case "4":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "B":
+		order.SetPrice(limitPrice, 2)
+	case "O":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "Q":
+		order.SetPrice(limitPrice, 2)
+	case "W":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "J":
+		order.SetStopPx(stopPrice, 2)
+	case "S":
+		order.SetStopPx(stopPrice, 2)
+	case "T":
+		order.SetStopPx(stopPrice, 2)
+	case "V":
+		order.SetStopPx(stopPrice, 2)
+	case "X":
+		order.SetStopPx(stopPrice, 2)
 	}
+
 	//INStrument Block
 	order.SetSecurityExchange(exchange)
-	if	productType == "FUT" || productType == "OPT" || productType == "NRG"{
+	if productType == "FUT" || productType == "OPT" || productType == "NRG" {
 		order.SetMaturityMonthYear(maturity)
 	}
 
-
 	order.SetAccount(account)
+	order.SetString(quickfix.Tag(11028), "Y")
 
 	message := order.ToMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	SendMessage(message)
 }
 
-func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //Order Status request
+func QueryWorkingOrder(account string, sender string, c chan OrderStatusReq) { //Order Status request
 	var osq OrderStatusReq
 	osq.Account = account
 	osq.channel = c
-	osq.Count =0
+	osq.Count = 0
 	orderStatusRequestList.append(&osq)
 
 	message := quickfix.NewMessage()
@@ -113,15 +144,15 @@ func QueryWorkingOrder(account string,sender string, c chan OrderStatusReq) { //
 	SendMessage(message)
 }
 
-func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfirmation) {
+func QueryOrderCancel(id string, orderID string, sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.Id = id
-	cancelOrderQuery.channel =c
-	cancelAndUpdateMap.Store(id,&cancelOrderQuery)
+	cancelOrderQuery.channel = c
+	cancelAndUpdateMap.Store(id, &cancelOrderQuery)
 
 	message := quickfix.NewMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	message.Header.Set(field.NewMsgType("F"))
 	message.Body.Set(field.NewClOrdID(id))
 	message.Body.Set(field.NewOrderID(orderID))
@@ -129,15 +160,15 @@ func QueryOrderCancel(id string, orderID string,sender string, c chan OrderConfi
 	SendMessage(message)
 }
 
-func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string,productType string, timeInForce string,sender string, c chan OrderConfirmation) {
+func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.Id = newid
-	cancelOrderQuery.channel =c
-	cancelAndUpdateMap.Store(newid,&cancelOrderQuery)
+	cancelOrderQuery.channel = c
+	cancelAndUpdateMap.Store(newid, &cancelOrderQuery)
 
 	message := quickfix.NewMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	message.Header.Set(field.NewMsgType("G"))
 	message.Body.Set(field.NewOrderID(orderID))
 	message.Body.Set(field.NewClOrdID(newid))
@@ -158,7 +189,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 
 	var timeInForceField field.TimeInForceField
 	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
-	message.Body.Set(timeInForceField)  //0 for day and 1 for GTC
+	message.Body.Set(timeInForceField) //0 for day and 1 for GTC
 
 	qty, _ := decimal.NewFromString(quantity)
 	message.Body.Set(field.NewOrderQty(qty, 2))
@@ -168,7 +199,7 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 
 	//INStrument Block
 	message.Body.Set(field.NewSecurityExchange(exchange))
-	if productType == "FUT" || productType == "OPT" || productType == "NRG"{
+	if productType == "FUT" || productType == "OPT" || productType == "NRG" {
 		message.Body.Set(field.NewMaturityMonthYear(maturity))
 	}
 
@@ -176,21 +207,21 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	SendMessage(message)
 
 }
-func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string,productType string,sender string, c chan MarketDataReq) {
+func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string, sender string, c chan MarketDataReq) {
 
 	var md MarketDataReq
-	md.Id =id
+	md.Id = id
 	md.channel = c
 	md.Symbol = symbol
-	md.PriceType =string(priceType)
-	md.ProductMaturity =maturity
-	md.Exchange =exchange
+	md.PriceType = string(priceType)
+	md.ProductMaturity = maturity
+	md.Exchange = exchange
 	md.MarketDepth = string(marketDepth)
 	md.Symbol = symbol
-	marketDataRequestMap.Store(id,&md)
+	marketDataRequestMap.Store(id, &md)
 
 	message := quickfix.NewMessage()
-	queryHeaderPrice(message.Header,sender)
+	queryHeaderPrice(message.Header, sender)
 	message.Header.Set(field.NewMsgType("V"))
 	message.Body.Set(field.NewMDReqID(id))
 	message.Body.Set(field.NewSubscriptionRequestType(requestType))
@@ -218,33 +249,33 @@ func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType,
 	SendMessage(mdr.ToMessage())
 }
 
-func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string,sender string, c chan SecurityDefinitionReq) {
+func QuerySecurityDefinitionRequest(id string, symbol string, exchange string, securityID string, productType string, sender string, c chan SecurityDefinitionReq) {
 
 	var sdr SecurityDefinitionReq
 	sdr.Id = id
-	sdr.channel =c
-	securityDefinitionMap.Store(id,&sdr)
+	sdr.channel = c
+	securityDefinitionMap.Store(id, &sdr)
 
 	message := quickfix.NewMessage()
-	queryHeader(message.Header,sender)
+	queryHeader(message.Header, sender)
 	message.Header.Set(field.NewMsgType("c"))
 	message.Body.Set(field.NewSecurityReqID(id))
-	if symbol != ""{
+	if symbol != "" {
 		message.Body.Set(field.NewSymbol(symbol))
 	}
 
-	if productType != ""{
+	if productType != "" {
 		var productTypeField field.SecurityTypeField
 		productTypeField.FIXString = quickfix.FIXString(productType)
 		message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
 	}
-	if securityID != ""{
+	if securityID != "" {
 		message.Body.Set(field.NewSecurityID(securityID))
 	}
-	if exchange != ""{
+	if exchange != "" {
 		message.Body.Set(field.NewSecurityExchange(exchange))
 	}
-	message.Body.SetString(quickfix.Tag(17000),"Y")
+	//message.Body.SetString(quickfix.Tag(17000),"Y")
 	SendMessage(message)
 }
 
@@ -258,7 +289,7 @@ type header interface {
 	Set(f quickfix.FieldWriter) quickfix.FieldMap
 }
 
-func queryHeader(h header,sender string) {
+func queryHeader(h header, sender string) {
 	h.Set(field.NewSenderCompID(sender))
 	h.Set(field.NewTargetCompID("TTDEV18O"))
 	h.Set(field.NewBeginString("FIX.4.2"))

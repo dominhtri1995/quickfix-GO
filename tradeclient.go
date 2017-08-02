@@ -12,6 +12,7 @@ import (
 	"time"
 	"golang.org/x/sync/syncmap"
 	"sync"
+	"github.com/rs/xid"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -141,6 +142,12 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				orderStatusRequest, _ := osr.Value.(*OrderStatusReq)
 				if err == nil && account == orderStatusRequest.Account { // GET book order not single order Status request
 					orderStatusRequest.Count, _ = strconv.Atoi(numPosReports)
+					if orderStatusRequest.Count ==0 {
+						orderStatusRequest.Status = "ok"
+						orderStatusRequest.channel <- *orderStatusRequest
+						orderStatusRequestList.remove(osr.Index)
+						return
+					}
 
 					var order WorkingOrder
 					order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
@@ -155,6 +162,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
 					order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
 					order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+					order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 					order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
 					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 					putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
@@ -205,6 +213,11 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uan, _ := uan.(*UAN)
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16727))
 			uan.Count, _ = strconv.Atoi(numPosReports)
+			if uan.Count == 0 {
+				uan.channel <- *uan // return the result to Channel
+				uanMap.Delete(uid)
+				return
+			}
 
 			//Create a new UAP object
 			var uap UAPreport
@@ -230,6 +243,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			// fmt.Println(uap.AccountGroup)
 			uap.Price, _ = msg.Body.GetString(quickfix.Tag(31))
 			uap.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+			uap.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 			uap.Product, _ = msg.Body.GetString(quickfix.Tag(55))
 			uap.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
 			uap.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
@@ -240,17 +254,16 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 
 			//UAN Complete
 			posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
+			fmt.Println(len(uan.Reports))
+			fmt.Println(uan.Count)
 			if len(uan.Reports) == uan.Count {
 				for j := 0; j < len(uan.Reports); j++ {
 					if posReqType == "4" && uan.AccountGroup != uan.Reports[j].AccountGroup {
 						uan.Reports = append(uan.Reports[:j], uan.Reports[j+1:]...)
 						j--
-					} else if posReqType == "0" && uan.Account != uan.Reports[j].Account {
-						uan.Reports = append(uan.Reports[:j], uan.Reports[j+1:]...)
-						j--
 					}
 				}
-				fmt.Printf("Number of positions :%d for trader %s \n", len(uan.Reports), uan.AccountGroup)
+				fmt.Println("Done UAP")
 				uan.channel <- *uan // return the result to Channel
 				uanMap.Delete(uid)
 			}
@@ -383,8 +396,10 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	c := make(chan UAN)
 	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
 
+
+
 	select {
-	case uan = <-c:
+	case uan= <-c:
 
 	case <-getTimeOutChan():
 		var uan UAN
@@ -392,29 +407,29 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 		uan.Reason = "time out"
 	}
 
-	//var uan1 UAN
-	//c1 := make(chan UAN)
-	//QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
-	//
-	//select {
-	//case uan1 = <-c1:
-	//	if (uan.Status != "rejected") {
-	//		uan.Reports = append(uan.Reports, uan1.Reports[0:]...)
-	//		uan.Count = len(uan.Reports)
-	//		uan.Account = uan1.Account
-	//		uan.Status = "ok"
-	//	}
-	//case <-getTimeOutChan():
-	//	var uan UAN
-	//	uan.Status = "rejected"
-	//	uan.Reason = "time out"
-	//}
+	var uan1 UAN
+	c1 := make(chan UAN)
+	QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
+	select {
+	case uan1 = <-c1:
+		if uan.Status != "rejected"{
+			uan.Reports = append(uan.Reports, uan1.Reports[0:]...)
+			uan.Count = len(uan.Reports)
+			uan.Account = uan1.Account
+			uan.Status = "ok"
+		}
+	case <-getTimeOutChan():
+		fmt.Println("Time out Position")
+		var uan UAN
+		uan.Status = "rejected"
+		uan.Reason = "time out"
+	}
 
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, timeInForce, sender, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -482,7 +497,7 @@ func TT_QuerySecurityDefinitionRequest(id string, symbol string, exchange string
 		return sdr
 	case <-getTimeOutChan():
 		sdr.Status = "rejected"
-		sdr.Reason = "time out"
+		sdr.Reason = "time out or no security found"
 	}
 
 	return sdr
@@ -491,7 +506,7 @@ func TT_QuerySecurityDefinitionRequest(id string, symbol string, exchange string
 func getTimeOutChan() chan bool {
 	timeout := make(chan bool, 1)
 	go func() {
-		time.Sleep(30 * time.Second)
+		time.Sleep(60 * time.Second)
 		timeout <- true
 	}()
 	return timeout
@@ -529,6 +544,7 @@ func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message)
 	order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
 	order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
 	order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+	order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 	order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 	putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
 
@@ -571,6 +587,7 @@ type UAPreport struct {
 	ProductMaturity string
 	Exchange        string
 	SecurityID      string
+	SecurityAltID   string
 	PutOrCall       string //for option only
 	StrikePrice     string //for option only
 }
@@ -595,6 +612,7 @@ type WorkingOrder struct {
 	Exchange         string
 	ProductType      string
 	SecurityID       string
+	SecurityAltID   string
 	Side             string
 	SideNum          string
 	OrdType          string
@@ -614,6 +632,7 @@ type OrderConfirmation struct {
 	Exchange        string
 	ProductType     string
 	SecurityID      string
+	SecurityAltID   string
 	Side            string
 	Price           string
 	Quantity        string
@@ -664,6 +683,14 @@ type Security struct {
 
 	TickSize  float64
 	TickValue float64
+}
+type TTNotification struct {
+	Id string //unique for this fill
+	Account string
+	SubAccount string
+	OrderID string
+	QtyFilled string
+	PriceFilled string
 }
 
 //********* Concurrent SLice ************************** //
