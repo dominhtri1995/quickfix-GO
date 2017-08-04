@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/syncmap"
 	"sync"
 	"github.com/rs/xid"
+	"encoding/json"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -117,21 +118,45 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				}
 			case ordStatus == string(enum.OrdStatus_PARTIALLY_FILLED):
 				//Partially filled
-				//priceFilled,_ := msg.Body.GetInt(quickfix.Tag(31))
-				//qtyFilled,_ := msg.Body.GetInt(quickfix.Tag(32)) // qty just got filled
-				// 	totalqty,_ := msg.Body.GetString(quickfix.Tag(38))
-				// 	Symbol,_ := msg.Body.GetString(quickfix.Tag(55))
-				// 	Side , _ := msg.Body.GetString(quickfix.Tag(54))
-				// avgPx, _ := msg.Body.GetString(quickfix.Tag(6))
+				var noti TTNotification
+
+				noti.Id, _ = msg.Body.GetString(quickfix.Tag(17))
+				noti.Account,_ = msg.Header.GetString(quickfix.Tag(56))
+				noti.SubAccount,_ = msg.Body.GetString(quickfix.Tag(1))
+				noti.Symbol,_ =msg.Body.GetString(quickfix.Tag(55))
+				noti.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
+				noti.PriceFilled,_ = msg.Body.GetString(quickfix.Tag(31))
+				noti.QtyFilled , _ = msg.Body.GetString(quickfix.Tag(32))
+				noti.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+
+				notifiable, err := json.Marshal(&noti)
+				if err == nil {
+					//Notification functions go here
+					fmt.Println(string(notifiable))
+				}else {
+					fmt.Println("error in notification")
+				}
 
 			case ordStatus == string(enum.OrdStatus_FILLED):
 				//Fully filled
-				//priceFilled,_ := msg.Body.GetInt(quickfix.Tag(31))
-				//qtyFilled,_ := msg.Body.GetInt(quickfix.Tag(32)) // qty just got filled
-				// 	totalqty,_ := msg.Body.GetString(quickfix.Tag(38))
-				// 	Symbol,_ := msg.Body.GetString(quickfix.Tag(55))
-				// 	Side , _ := msg.Body.GetString(quickfix.Tag(54))
-				// avgPx, _ := msg.Body.GetString(quickfix.Tag(6))
+				var noti TTNotification
+
+				noti.Id, _ = msg.Body.GetString(quickfix.Tag(17))
+				noti.Account,_ = msg.Body.GetString(quickfix.Tag(56))
+				noti.SubAccount,_ = msg.Body.GetString(quickfix.Tag(1))
+				noti.Symbol,_ =msg.Body.GetString(quickfix.Tag(55))
+				noti.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
+				noti.PriceFilled,_ = msg.Body.GetString(quickfix.Tag(31))
+				noti.QtyFilled , _ = msg.Body.GetString(quickfix.Tag(32))
+				noti.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+
+				notifiable, err := json.Marshal(&noti)
+				if err == nil {
+					//Notification functions go here
+					fmt.Println(string(notifiable))
+				}else {
+					fmt.Println("error in notification")
+				}
 
 			}
 		} else {
@@ -165,6 +190,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 					order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
 					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+					order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
 					putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
 
 					if putOrCall == 0 {
@@ -464,9 +490,9 @@ func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderCo
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string,  limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, pri, symbol, exchange, maturity, productType, timeInForce, sender, c)
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri,stopPri, symbol, exchange, maturity, productType, timeInForce, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -536,6 +562,7 @@ func calculateTickValueAndSize(tag16552 float64, tag16554 float64, tag16456 int,
 
 func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message) {
 	order.Price, _ = msg.Body.GetString(quickfix.Tag(44))     //not available for market order
+	order.StopPrice ,_ = msg.Body.GetString(quickfix.Tag(99))
 	order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
 	order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 	order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
@@ -603,6 +630,7 @@ type OrderStatusReq struct {
 type WorkingOrder struct {
 	OrderID          string // Used to cancel order or request order Status later
 	Price            string
+	StopPrice        string
 	OrdStatus        string
 	Quantity         string
 	FilledQuantity   string
@@ -635,6 +663,7 @@ type OrderConfirmation struct {
 	SecurityAltID   string
 	Side            string
 	Price           string
+	StopPrice		string
 	Quantity        string
 	TimeInForce     string
 	OrdType         string
@@ -689,6 +718,8 @@ type TTNotification struct {
 	Account string
 	SubAccount string
 	OrderID string
+	Symbol string
+	SecurityAltID string
 	QtyFilled string
 	PriceFilled string
 }

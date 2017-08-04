@@ -160,7 +160,7 @@ func QueryOrderCancel(id string, orderID string, sender string, c chan OrderConf
 	SendMessage(message)
 }
 
-func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, pri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
+func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.Id = newid
@@ -194,8 +194,37 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	qty, _ := decimal.NewFromString(quantity)
 	message.Body.Set(field.NewOrderQty(qty, 2))
 
-	price, _ := decimal.NewFromString(pri)
-	message.Body.Set(field.NewPrice(price, 2))
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "3":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "4":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "B":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "O":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "Q":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "W":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "J":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "S":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "T":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "V":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "X":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	}
 
 	//INStrument Block
 	message.Body.Set(field.NewSecurityExchange(exchange))
