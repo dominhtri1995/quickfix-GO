@@ -69,6 +69,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		execrefID, _ := msg.Body.GetString(quickfix.Tag(20))
 		account, _ := msg.Body.GetString(quickfix.Tag(1))
 		ordStatus, _ := msg.Body.GetString(quickfix.Tag(39))
+		exec_type, _ := msg.Body.GetString(quickfix.Tag(150))
 
 		if (execrefID != "3") { //NOT order Status request
 
@@ -106,7 +107,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
-			case ordStatus == string(enum.OrdStatus_REPLACED):
+			case ordStatus == string(enum.OrdStatus_REPLACED) || exec_type == "5":
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
