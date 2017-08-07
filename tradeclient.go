@@ -97,6 +97,15 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					newOrderMap.Delete(clOrdID)
 				}
+				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
+					order, _ := order.(*OrderConfirmation)
+					order.Status = "rejected"
+					order.Account = account
+					order.Reason, _ = msg.Body.GetString(quickfix.Tag(58))
+					extractInfoExcecutionReport(order, msg)
+					order.channel <- *order
+					cancelAndUpdateMap.Delete(clOrdID)
+				}
 			case execType == string(enum.ExecType_CANCELED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
