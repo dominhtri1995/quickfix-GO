@@ -60,7 +60,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 	msg.Build()
 	fmt.Printf("Receiving %s\n", &msg)
 	messageType, err := msg.Header.GetString(quickfix.Tag(35))
-	if ( err != nil) {
+	if err != nil {
 		return
 	}
 	switch {
@@ -68,12 +68,13 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 	case messageType == string(enum.MsgType_EXECUTION_REPORT):
 		execrefID, _ := msg.Body.GetString(quickfix.Tag(20))
 		account, _ := msg.Body.GetString(quickfix.Tag(1))
-		ordStatus, _ := msg.Body.GetString(quickfix.Tag(39))
+		//ordStatus, _ := msg.Body.GetString(quickfix.Tag(39))
+		execType ,_ := msg.Body.GetString(quickfix.Tag(150))
 
-		if (execrefID != "3") { //NOT order Status request
+		if execrefID != "3" { //NOT order Status request
 
 			switch {
-			case ordStatus == string(enum.OrdStatus_NEW):
+			case execType == string(enum.ExecType_NEW):
 				// New Order
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
@@ -84,7 +85,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order                 //Send data back to Channel
 					newOrderMap.Delete(clOrdID)             // Remove Order Status request from list
 				}
-			case ordStatus == string(enum.OrdStatus_REJECTED):
+			case execType == string(enum.ExecType_REJECTED):
 				//rejected
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := newOrderMap.Load(clOrdID); ok && err == nil {
@@ -96,7 +97,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					newOrderMap.Delete(clOrdID)
 				}
-			case ordStatus == string(enum.OrdStatus_CANCELED):
+			case execType == string(enum.ExecType_CANCELED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
@@ -106,7 +107,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
-			case ordStatus == string(enum.OrdStatus_REPLACED):
+			case execType == string(enum.ExecType_REPLACED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
@@ -116,7 +117,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
-			case ordStatus == string(enum.OrdStatus_PARTIALLY_FILLED):
+			case execType == string(enum.ExecType_PARTIAL_FILL):
 				//Partially filled
 				var noti TTNotification
 
@@ -137,7 +138,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					fmt.Println("error in notification")
 				}
 
-			case ordStatus == string(enum.OrdStatus_FILLED):
+			case execType == string(enum.ExecType_FILL):
 				//Fully filled
 				var noti TTNotification
 
