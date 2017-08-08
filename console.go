@@ -55,7 +55,7 @@ func QueryPAndLPos(id string, account string, sender string, c chan UAN) (err er
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string,  c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.Id = id
@@ -121,6 +121,15 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 		order.SetMaturityMonthYear(maturity)
 	}
 
+	if productType == "OPT"{
+		var putOrCallField field.PutOrCallField
+		putOrCallField.FIXString = quickfix.FIXString(putOrCall)
+		order.Set(putOrCallField)
+
+		strikeP ,_ := decimal.NewFromString(strikePrice)
+		order.SetStrikePrice(strikeP,2)
+	}
+
 	order.SetAccount(account)
 	order.SetString(quickfix.Tag(11028), "Y")
 
@@ -160,7 +169,7 @@ func QueryOrderCancel(id string, orderID string, sender string, c chan OrderConf
 	SendMessage(message)
 }
 
-func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string, c chan OrderConfirmation) {
+func QueryOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string, c chan OrderConfirmation) {
 
 	var cancelOrderQuery OrderConfirmation
 	cancelOrderQuery.Id = newid
@@ -230,6 +239,14 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	message.Body.Set(field.NewSecurityExchange(exchange))
 	if productType == "FUT" || productType == "OPT" || productType == "NRG" {
 		message.Body.Set(field.NewMaturityMonthYear(maturity))
+	}
+	if productType == "OPT"{
+		var putOrCallField field.PutOrCallField
+		putOrCallField.FIXString = quickfix.FIXString(putOrCall)
+		message.Body.Set(putOrCallField)
+
+		strikeP ,_ := decimal.NewFromString(strikePrice)
+		message.Body.Set(field.NewStrikePrice(strikeP,2))
 	}
 
 	message.Body.Set(field.NewAccount(account))

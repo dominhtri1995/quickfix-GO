@@ -201,13 +201,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
 					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 					order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
-					putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
+					order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
 
-					if putOrCall == 0 {
-						order.PutOrCall = "Put"
-					} else {
-						order.PutOrCall = "Call"
-					}
 
 					if order.SideNum == "1" {
 						order.Side = "Buy"
@@ -260,15 +255,11 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.Quantity, _ = msg.Body.GetString(quickfix.Tag(32))
 			q, _ := strconv.Atoi(uap.Quantity)
 
-			putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
+			uap.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
 
-			if putOrCall == 0 {
-				uap.PutOrCall = "Put"
-			} else {
-				uap.PutOrCall = "Call"
-			}
 
-			if (q > 0) {
+
+			if q > 0 {
 				uap.Side = "Buy"
 			} else {
 				uap.Side = "Sell"
@@ -318,7 +309,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				md.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 				md.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 				productType, _ := msg.Body.GetString(quickfix.Tag(167))
-				if (productType == "FUT") {
+				if productType == "FUT" {
 					md.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 				}
 
@@ -463,9 +454,9 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, sender, c)
+	QueryNewOrderSingle(id, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce,strikePrice,putOrCall, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -500,9 +491,9 @@ func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderCo
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string,  limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string,  limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri,stopPri, symbol, exchange, maturity, productType, timeInForce, sender, c)
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri,stopPri, symbol, exchange, maturity, productType, timeInForce,strikePrice,putOrCall, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -583,13 +574,8 @@ func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message)
 	order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
 	order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 	order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
-	putOrCall, _ := msg.Body.GetInt(quickfix.Tag(201))
+	order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
 
-	if putOrCall == 0 {
-		order.PutOrCall = "Put"
-	} else {
-		order.PutOrCall = "Call"
-	}
 	if order.SideNum == "1" {
 		order.Side = "Buy"
 	} else {
