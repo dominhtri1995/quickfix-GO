@@ -271,7 +271,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					uap.Side = "Buy"
 				} else {
 					uap.Side = "Sell"
-					uap.Quantity = string(q * (-1))
+					uap.Quantity = strconv.Itoa(q * (-1))
 				}
 			}
 
