@@ -240,6 +240,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 	case messageType == "UAP":
 		// fmt.Printf("Receiving UAP \n")
 		var uid, _ = msg.Body.GetString(quickfix.Tag(16710))
+		posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
+
 		if uan, ok := uanMap.Load(uid); ok {
 			uan, _ := uan.(*UAN)
 			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16727))
@@ -255,16 +257,24 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.Quantity, _ = msg.Body.GetString(quickfix.Tag(32))
 			q, _ := strconv.Atoi(uap.Quantity)
 
-			uap.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
-
-
-
-			if q > 0 {
-				uap.Side = "Buy"
-			} else {
-				uap.Side = "Sell"
-				uap.Quantity = string(q * (-1))
+			if posReqType == "1"{
+				side ,_ := msg.Body.GetString(quickfix.Tag(54))
+				if side =="1"{
+					uap.Side="Buy"
+				}else{
+					uap.Side = "Sell"
+				}
+			}else{
+				if q > 0 {
+					uap.Side = "Buy"
+				} else {
+					uap.Side = "Sell"
+					uap.Quantity = string(q * (-1))
+				}
 			}
+
+
+			uap.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
 			uap.AccountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
 			uap.Account, _ = msg.Body.GetString(quickfix.Tag(1))
 			// fmt.Println(uap.AccountGroup)
@@ -280,7 +290,6 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uan.Reports = append(uan.Reports, uap)
 
 			//UAN Complete
-			posReqType, _ := msg.Body.GetString(quickfix.Tag(16724))
 			fmt.Println(len(uan.Reports))
 			fmt.Println(uan.Count)
 			if len(uan.Reports) == uan.Count {
@@ -291,10 +300,12 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					}
 				}
 				fmt.Println("Done UAP")
+				uan.Status = "ok"
 				uan.channel <- *uan // return the result to Channel
 				uanMap.Delete(uid)
 			}
 		}
+
 	case messageType == "W": //Market data request
 		uid, _ := msg.Body.GetString(quickfix.Tag(262))
 		if md, ok := marketDataRequestMap.Load(uid); ok {
@@ -424,7 +435,6 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
 
 
-
 	select {
 	case uan= <-c:
 
@@ -452,6 +462,19 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 		uan.Reason = "time out"
 	}
 
+	return uan
+}
+func TT_Fills(id string, account string, sender string) (uan UAN){
+	c:= make(chan UAN)
+	QueryFills(id,account,sender,c)
+	select {
+	case uan= <-c:
+
+	case <-getTimeOutChan():
+		var uan UAN
+		uan.Status = "rejected"
+		uan.Reason = "time out"
+	}
 	return uan
 }
 func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {

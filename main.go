@@ -97,6 +97,17 @@ Loop:
 				fmt.Printf("Reason: %s \n",sdr.Reason)
 			}
 		case "9":
+			uan:= TT_Fills(xid.New().String(),"venustech3","VENUSTECH3")
+			if uan.Status == "ok"{
+				fmt.Println("Get Fill ok")
+				for _, uap := range uan.Reports {
+					fmt.Printf("Fill: %s %s at %s quant: %s\n",uap.Side, uap.SecurityAltID,uap.Price,uap.Quantity)
+				}
+			}else{
+				fmt.Println("get fill failed")
+			}
+
+		case "99":
 			break Loop
 		case "19"://test ordertype
 			numbers := []string{"5","B","J","O","Q","R"}
@@ -136,7 +147,8 @@ func QueryAction() (string, error) {
 	fmt.Println("6) Cancel All working order")
 	fmt.Println("7) Replace First working order")
 	fmt.Println("8) Test Security Definition Request")
-	fmt.Println("9) Quit")
+	fmt.Println("9) Get Fills")
+	fmt.Println("99) Quit")
 	fmt.Print("Action: ")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()

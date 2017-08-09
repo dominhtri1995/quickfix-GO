@@ -28,7 +28,7 @@ func QueryPAndLSOD(id string, accountGroup string, sender string, c chan UAN) (e
 	message.Header.SetString(quickfix.Tag(35), "UAN")
 	message.Body.SetString(quickfix.Tag(16710), id) // uniqueID
 	message.Body.SetInt(quickfix.Tag(16724), 4)
-	message.Body.SetString(quickfix.Tag(263), "1")
+	message.Body.SetString(quickfix.Tag(263), "0")
 	SendMessage(message)
 
 	return
@@ -47,7 +47,28 @@ func QueryPAndLPos(id string, account string, sender string, c chan UAN) (err er
 	message.Header.SetString(quickfix.Tag(35), "UAN")
 	message.Body.SetString(quickfix.Tag(16710), id) // uniqueID
 	message.Body.SetInt(quickfix.Tag(16724), 0)
-	message.Body.SetString(quickfix.Tag(263), "1")
+	message.Body.SetString(quickfix.Tag(263), "0")
+	message.Body.SetString(quickfix.Tag(1), account)
+
+	SendMessage(message)
+
+	return
+}
+func QueryFills(id string, account string, sender string, c chan UAN) (err error) {
+	//UANS
+	var u UAN
+	u.Id = id
+	u.Count = 0
+	u.channel = c
+	u.Account = account
+	uanMap.Store(id, &u)
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header, sender)
+	message.Header.SetString(quickfix.Tag(35), "UAN")
+	message.Body.SetString(quickfix.Tag(16710), id) // uniqueID
+	message.Body.SetInt(quickfix.Tag(16724), 1)
+	message.Body.SetString(quickfix.Tag(263), "0")
 	message.Body.SetString(quickfix.Tag(1), account)
 
 	SendMessage(message)
