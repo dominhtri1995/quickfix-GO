@@ -264,6 +264,8 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				}else{
 					uap.Side = "Sell"
 				}
+				uap.OrderID,_ = msg.Body.GetString(quickfix.Tag(37))
+				uap.SecondaryOrderID,_ = msg.Body.GetString(quickfix.Tag(198))
 			}else{
 				if q > 0 {
 					uap.Side = "Buy"
@@ -636,6 +638,8 @@ type UAPreport struct {
 	SecurityAltID   string
 	PutOrCall       string //for option only
 	StrikePrice     string //for option only
+	OrderID         string //for fills
+	SecondaryOrderID string //for fills
 }
 
 type OrderStatusReq struct {
