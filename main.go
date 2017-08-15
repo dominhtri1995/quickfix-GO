@@ -29,7 +29,7 @@ Loop:
 				fmt.Printf("%s %s %s\n",uap.Side, uap.SecurityAltID,uap.Price)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "4", "50", "57.2","57", "IPE e-Brent", "ICE", "201709", "FUT", "1","0","0", "VENUSTECH3")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "4", "50", "57.2","57", "IPE e-Brent", "ICE", "201709", "FUT", "1","0","0", "VENUSTECH3")
 			if ordStatus.Status == "ok" {
 				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -112,7 +112,7 @@ Loop:
 		case "19"://test ordertype
 			numbers := []string{"5","B","J","O","Q","R"}
 			for _,n := range numbers{
-				ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech", "1", "2", "50", "247825","2500222", "ES", "CME", "201709", "FUT", n,"0","0", "VENUSTECH3")
+				ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "2", "50", "247825","2500222", "ES", "CME", "201709", "FUT", n,"0","0", "VENUSTECH3")
 				if ordStatus.Status == "ok" {
 					fmt.Println(ordStatus.Id)
 					fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -123,7 +123,32 @@ Loop:
 					}
 				}
 			}
+		case "20": //test multileg
+			var u UnderlyingInstrumentGroup
+			u.UnderlyingSecurityExchange="CME"
+			u.UnderlyingSecurityType ="FUT"
+			u.UnderlyingSymbol = "ES"
+			u.UnderlyingMaturityMonthYear="201709"
+			u.LegSide = "2"
+			u.RatioQty="1"
+			u.UnderlyingSecurityID= "00A0IR00ESZ"
+			u.UnderlyingSecurityAltID = "ESU7"
 
+			var u1 UnderlyingInstrumentGroup
+			u1.UnderlyingSecurityExchange="CME"
+			u1.UnderlyingSecurityType ="FUT"
+			u1.UnderlyingSymbol = "ES"
+			u1.UnderlyingMaturityMonthYear="201712"
+			u1.LegSide = "1"
+			u1.RatioQty="1"
+			u1.UnderlyingSecurityID= "00A0LR00ESZ"
+			u1.UnderlyingSecurityAltID = "ESZ7"
+
+			var group []*UnderlyingInstrumentGroup
+			group = append(group, &u)
+			group= append(group, &u1)
+
+			QueryMultiLegNewOrder(xid.New().String(),"venustech","1","2","5","110","","0","CME","Calender",group,"VENUSTECH")
 
 		default:
 			cmd := exec.Command("clear") //linux only

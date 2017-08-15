@@ -38,6 +38,22 @@ func (e TradeClient) ToAdmin(msg quickfix.Message, sessionID quickfix.SessionID)
 
 	messageType, _ := msg.Header.GetString(quickfix.Tag(35))
 
+	//if messageType == "A" {
+	//	fmt.Println(sessionID.TargetCompID)
+	//	switch sessionID.TargetCompID {
+	//	case "TTDEV180":
+	//		fmt.Println("setting password")
+	//		msg.Header.SetString(quickfix.Tag(96), "12345678")
+	//		t34, err := msg.Header.GetInt(quickfix.Tag(34))
+	//		if t34 == 1 && err == nil {
+	//			msg.Header.SetBool(quickfix.Tag(141), true) //Set reset sequence
+	//		}
+	//	case "TTDEV18P":
+	//		msg.Header.SetString(quickfix.Tag(96), "12345678")
+	//		//add more password for different users here with more case
+	//	}
+	//	msg.Header.SetInt(quickfix.Tag(95), 8)
+	//}
 	if messageType == "A" {
 		msg.Header.SetString(quickfix.Tag(96), "12345678")
 		msg.Header.SetInt(quickfix.Tag(95), 8)
@@ -69,7 +85,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		execrefID, _ := msg.Body.GetString(quickfix.Tag(20))
 		account, _ := msg.Body.GetString(quickfix.Tag(1))
 		//ordStatus, _ := msg.Body.GetString(quickfix.Tag(39))
-		execType ,_ := msg.Body.GetString(quickfix.Tag(150))
+		execType, _ := msg.Body.GetString(quickfix.Tag(150))
 
 		if execrefID != "3" { //NOT order Status request
 
@@ -131,19 +147,19 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				var noti TTNotification
 
 				noti.Id, _ = msg.Body.GetString(quickfix.Tag(17))
-				noti.Account,_ = msg.Header.GetString(quickfix.Tag(56))
-				noti.SubAccount,_ = msg.Body.GetString(quickfix.Tag(1))
-				noti.Symbol,_ =msg.Body.GetString(quickfix.Tag(55))
+				noti.Account, _ = msg.Header.GetString(quickfix.Tag(56))
+				noti.SubAccount, _ = msg.Body.GetString(quickfix.Tag(1))
+				noti.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 				noti.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
-				noti.PriceFilled,_ = msg.Body.GetString(quickfix.Tag(31))
-				noti.QtyFilled , _ = msg.Body.GetString(quickfix.Tag(32))
+				noti.PriceFilled, _ = msg.Body.GetString(quickfix.Tag(31))
+				noti.QtyFilled, _ = msg.Body.GetString(quickfix.Tag(32))
 				noti.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
 
 				notifiable, err := json.Marshal(&noti)
 				if err == nil {
 					//Notification functions go here
 					fmt.Println(string(notifiable))
-				}else {
+				} else {
 					fmt.Println("error in notification")
 				}
 
@@ -152,19 +168,19 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				var noti TTNotification
 
 				noti.Id, _ = msg.Body.GetString(quickfix.Tag(17))
-				noti.Account,_ = msg.Body.GetString(quickfix.Tag(56))
-				noti.SubAccount,_ = msg.Body.GetString(quickfix.Tag(1))
-				noti.Symbol,_ =msg.Body.GetString(quickfix.Tag(55))
+				noti.Account, _ = msg.Body.GetString(quickfix.Tag(56))
+				noti.SubAccount, _ = msg.Body.GetString(quickfix.Tag(1))
+				noti.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 				noti.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
-				noti.PriceFilled,_ = msg.Body.GetString(quickfix.Tag(31))
-				noti.QtyFilled , _ = msg.Body.GetString(quickfix.Tag(32))
+				noti.PriceFilled, _ = msg.Body.GetString(quickfix.Tag(31))
+				noti.QtyFilled, _ = msg.Body.GetString(quickfix.Tag(32))
 				noti.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
 
 				notifiable, err := json.Marshal(&noti)
 				if err == nil {
 					//Notification functions go here
 					fmt.Println(string(notifiable))
-				}else {
+				} else {
 					fmt.Println("error in notification")
 				}
 
@@ -177,7 +193,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				orderStatusRequest, _ := osr.Value.(*OrderStatusReq)
 				if err == nil && account == orderStatusRequest.Account { // GET book order not single order Status request
 					orderStatusRequest.Count, _ = strconv.Atoi(numPosReports)
-					if orderStatusRequest.Count ==0 {
+					if orderStatusRequest.Count == 0 {
 						orderStatusRequest.Status = "ok"
 						orderStatusRequest.channel <- *orderStatusRequest
 						orderStatusRequestList.remove(osr.Index)
@@ -202,7 +218,6 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 					order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
 					order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
-
 
 					if order.SideNum == "1" {
 						order.Side = "Buy"
@@ -257,16 +272,16 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.Quantity, _ = msg.Body.GetString(quickfix.Tag(32))
 			q, _ := strconv.Atoi(uap.Quantity)
 
-			if posReqType == "1"{
-				side ,_ := msg.Body.GetString(quickfix.Tag(54))
-				if side =="1"{
-					uap.Side="Buy"
-				}else{
+			if posReqType == "1" {
+				side, _ := msg.Body.GetString(quickfix.Tag(54))
+				if side == "1" {
+					uap.Side = "Buy"
+				} else {
 					uap.Side = "Sell"
 				}
-				uap.OrderID,_ = msg.Body.GetString(quickfix.Tag(37))
-				uap.SecondaryOrderID,_ = msg.Body.GetString(quickfix.Tag(198))
-			}else{
+				uap.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+				uap.SecondaryOrderID, _ = msg.Body.GetString(quickfix.Tag(198))
+			} else {
 				if q > 0 {
 					uap.Side = "Buy"
 				} else {
@@ -274,7 +289,6 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					uap.Quantity = strconv.Itoa(q * (-1))
 				}
 			}
-
 
 			uap.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
 			uap.AccountGroup, _ = msg.Header.GetString(quickfix.Tag(50))
@@ -286,7 +300,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			uap.Product, _ = msg.Body.GetString(quickfix.Tag(55))
 			uap.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
 			uap.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
-			if uap.ProductType == "FUT"  || uap.ProductType == "OPT" || uap.ProductType == "NRG"{
+			if uap.ProductType == "FUT" || uap.ProductType == "OPT" || uap.ProductType == "NRG" {
 				uap.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 			}
 			uan.Reports = append(uan.Reports, uap)
@@ -344,16 +358,16 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 		}
 	case messageType == "d":
 		id, _ := msg.Body.GetString(quickfix.Tag(320))
-		count,_ := msg.Body.GetInt(quickfix.Tag(393))
+		count, _ := msg.Body.GetInt(quickfix.Tag(393))
 		if sdr, ok := securityDefinitionMap.Load(id); ok {
 			sdr, _ := sdr.(*SecurityDefinitionReq)
-			sdr.Count =count
+			sdr.Count = count
 
 			var security Security
 			security.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 			security.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
 			security.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
-			security.ProductMaturity,_ = msg.Body.GetString(quickfix.Tag(200))
+			security.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 			security.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
 			security.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 			security.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
@@ -361,16 +375,16 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 
 			exchTickSize, _ := msg.Body.GetString(quickfix.Tag(16552))
 			exchPointValue, _ := msg.Body.GetString(quickfix.Tag(16554))
-			security.ExchTickSize,_ = strconv.ParseFloat(exchTickSize,64)
-			security.ExchPointValue,_  = strconv.ParseFloat(exchPointValue,64)
-			security.NumTicktblEntries,_ = msg.Body.GetInt(quickfix.Tag(16456))
+			security.ExchTickSize, _ = strconv.ParseFloat(exchTickSize, 64)
+			security.ExchPointValue, _ = strconv.ParseFloat(exchPointValue, 64)
+			security.NumTicktblEntries, _ = msg.Body.GetInt(quickfix.Tag(16456))
 
-			security.TickValue, security.TickSize = calculateTickValueAndSize(security.ExchTickSize,security.ExchPointValue,0,0,"0","0")
+			security.TickValue, security.TickSize = calculateTickValueAndSize(security.ExchTickSize, security.ExchPointValue, 0, 0, "0", "0")
 			//tag16552 int,tag16554 int,tag16456 int, tag16457 int,tag16458 string
 			sdr.SecurityList = append(sdr.SecurityList, security)
 			fmt.Println(sdr.Count)
 			fmt.Println(len(sdr.SecurityList))
-			if sdr.Count == len(sdr.SecurityList){
+			if sdr.Count == len(sdr.SecurityList) {
 				fmt.Println("receive all security definition")
 				sdr.Status = "ok"
 				sdr.channel <- *sdr
@@ -436,9 +450,8 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	c := make(chan UAN)
 	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
 
-
 	select {
-	case uan= <-c:
+	case uan = <-c:
 
 	case <-getTimeOutChan():
 		var uan UAN
@@ -451,7 +464,7 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
 	select {
 	case uan1 = <-c1:
-		if uan.Status != "rejected"{
+		if uan.Status != "rejected" {
 			uan.Reports = append(uan.Reports, uan1.Reports[0:]...)
 			uan.Count = len(uan.Reports)
 			uan.Account = uan1.Account
@@ -466,11 +479,11 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 
 	return uan
 }
-func TT_Fills(id string, account string, sender string) (uan UAN){
-	c:= make(chan UAN)
-	QueryFills(id,account,sender,c)
+func TT_Fills(id string, account string, sender string) (uan UAN) {
+	c := make(chan UAN)
+	QueryFills(id, account, sender, c)
 	select {
-	case uan= <-c:
+	case uan = <-c:
 
 	case <-getTimeOutChan():
 		var uan UAN
@@ -479,9 +492,9 @@ func TT_Fills(id string, account string, sender string) (uan UAN){
 	}
 	return uan
 }
-func TT_NewOrderSingle(id string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string,mistroAccount string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingle(id, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce,strikePrice,putOrCall, sender, c)
+	QueryNewOrderSingle(id, account, mistroAccount, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, strikePrice, putOrCall, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -516,9 +529,9 @@ func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderCo
 	}
 	return ordStatus
 }
-func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string,  limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
+func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri,stopPri, symbol, exchange, maturity, productType, timeInForce,strikePrice,putOrCall, sender, c)
+	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, strikePrice, putOrCall, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -568,7 +581,7 @@ func calculateTickValueAndSize(tag16552 float64, tag16554 float64, tag16456 int,
 		tickSize = tag16552
 		tickValue = tag16552 * tag16554
 	} else {
-		if price == "0"{
+		if price == "0" {
 			return -1, -1
 		}
 		//baseTickSize := tag16552
@@ -587,8 +600,8 @@ func calculateTickValueAndSize(tag16552 float64, tag16554 float64, tag16456 int,
 }
 
 func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message) {
-	order.Price, _ = msg.Body.GetString(quickfix.Tag(44))     //not available for market order
-	order.StopPrice ,_ = msg.Body.GetString(quickfix.Tag(99))
+	order.Price, _ = msg.Body.GetString(quickfix.Tag(44)) //not available for market order
+	order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
 	order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
 	order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
 	order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
@@ -624,21 +637,21 @@ type UAN struct {
 	Reason       string
 }
 type UAPreport struct {
-	Id              string
-	AccountGroup    string
-	Account         string
-	Quantity        string
-	Price           string
-	Side            string
-	Product         string
-	ProductType     string
-	ProductMaturity string
-	Exchange        string
-	SecurityID      string
-	SecurityAltID   string
-	PutOrCall       string //for option only
-	StrikePrice     string //for option only
-	OrderID         string //for fills
+	Id               string
+	AccountGroup     string
+	Account          string
+	Quantity         string
+	Price            string
+	Side             string
+	Product          string
+	ProductType      string
+	ProductMaturity  string
+	Exchange         string
+	SecurityID       string
+	SecurityAltID    string
+	PutOrCall        string //for option only
+	StrikePrice      string //for option only
+	OrderID          string //for fills
 	SecondaryOrderID string //for fills
 }
 
@@ -663,7 +676,7 @@ type WorkingOrder struct {
 	Exchange         string
 	ProductType      string
 	SecurityID       string
-	SecurityAltID   string
+	SecurityAltID    string
 	Side             string
 	SideNum          string
 	OrdType          string
@@ -686,7 +699,7 @@ type OrderConfirmation struct {
 	SecurityAltID   string
 	Side            string
 	Price           string
-	StopPrice		string
+	StopPrice       string
 	Quantity        string
 	TimeInForce     string
 	OrdType         string
@@ -737,14 +750,48 @@ type Security struct {
 	TickValue float64
 }
 type TTNotification struct {
-	Id string //unique for this fill
-	Account string
-	SubAccount string
-	OrderID string
-	Symbol string
+	Id            string //unique for this fill
+	Account       string
+	SubAccount    string
+	OrderID       string
+	Symbol        string
 	SecurityAltID string
-	QtyFilled string
-	PriceFilled string
+	QtyFilled     string
+	PriceFilled   string
+}
+
+type UnderlyingInstrumentGroup struct {
+	//https://www.tradingtechnologies.com/help/fix-adapter-reference/about-fix-messages/component-block-underlying-instrument/
+	UnderlyingSecurityExchange  string
+	UnderlyingSecurityType      string
+	UnderlyingSymbol            string
+	UnderlyingSecurityID        string
+	UnderlyingSecurityAltID     string
+	UnderlyingMaturityMonthYear string
+	UnderlyingMaturityDay       string
+	UnderlyingContractTerm      string
+	UnderlyingPutOrCall         string
+	UnderlyingStrikePrice       string
+	UnderlyingOptAttribute      string
+	LegSide                     string
+	LegPrice                    string
+	RatioQty                    string
+}
+func NewUnderlyingInstrumentGroup()(*UnderlyingInstrumentGroup){
+	var u UnderlyingInstrumentGroup
+	u.UnderlyingSecurityExchange  =""
+	u.UnderlyingSecurityType      =""
+	u.UnderlyingSymbol            =""
+	u.UnderlyingMaturityMonthYear =""
+	u.UnderlyingMaturityDay       =""
+	u.UnderlyingContractTerm      =""
+	u.UnderlyingPutOrCall         =""
+	u.UnderlyingStrikePrice       =""
+	u.UnderlyingOptAttribute      =""
+	u.LegSide                     =""
+	u.LegPrice                    =""
+	u.RatioQty                    =""
+	return &u
 }
 
 //********* Concurrent SLice ************************** //

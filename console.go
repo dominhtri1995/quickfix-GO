@@ -76,7 +76,7 @@ func QueryFills(id string, account string, sender string, c chan UAN) (err error
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string,  c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string,  c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.Id = id
@@ -152,10 +152,108 @@ func QueryNewOrderSingle(id string, account string, side string, ordtype string,
 	}
 
 	order.SetAccount(account)
+	order.SetString(quickfix.Tag(50),mistroAccount)
+	order.SetString(quickfix.Tag(16142),mistroAccount)
+	order.SetString(quickfix.Tag(116),"OBO") //On behalf of
 	order.SetString(quickfix.Tag(11028), "Y")
 
 	message := order.ToMessage()
 	queryHeader(message.Header, sender)
+	SendMessage(message)
+}
+
+func QueryMultiLegNewOrder(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string, exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup,sender string){
+
+	var groupTemplate []quickfix.GroupItem
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(311)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(309)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(310)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(308)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10456)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(318)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(313)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(314)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(18212)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(315)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(316)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(317)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(319)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(16624)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10566)))
+
+	group := quickfix.NewRepeatingGroup(quickfix.Tag(146),groupTemplate)
+	for _,u := range underlyingInstrumentGroup{
+		newSym := group.Add()
+		newSym.SetString(quickfix.Tag(311),u.UnderlyingSymbol)
+		newSym.SetString(quickfix.Tag(310),u.UnderlyingSecurityType)
+		newSym.SetString(quickfix.Tag(308),u.UnderlyingSecurityExchange)
+		newSym.SetString(quickfix.Tag(313),u.UnderlyingMaturityMonthYear)
+		newSym.SetString(quickfix.Tag(319),u.RatioQty)
+		//newSym.SetString(quickfix.Tag(314),u.UnderlyingMaturityDay)
+		//newSym.SetString(quickfix.Tag(18212),u.UnderlyingContractTerm)
+		//newSym.SetString(quickfix.Tag(315),u.UnderlyingPutOrCall)
+		//newSym.SetString(quickfix.Tag(316),u.UnderlyingStrikePrice)
+		//newSym.SetString(quickfix.Tag(317),u.UnderlyingOptAttribute)
+		newSym.SetString(quickfix.Tag(16624),u.LegSide)
+		//newSym.SetString(quickfix.Tag(10566),u.LegPrice)
+		newSym.SetString(quickfix.Tag(309),u.UnderlyingSecurityID)
+		newSym.SetString(quickfix.Tag(10456),u.UnderlyingSecurityAltID)
+		newSym.SetString(quickfix.Tag(318),"USD")
+	}
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header, sender)
+	message.Body.SetString(quickfix.Tag(1),account)
+	message.Header.SetString(quickfix.Tag(35),"D")
+	message.Body.SetString(quickfix.Tag(167),"MLEG")
+	message.Body.SetString(quickfix.Tag(207),exchange)
+	message.Body.SetString(quickfix.Tag(18203),"CME")
+
+	message.Body.SetString(quickfix.Tag(11),id)
+	message.Body.SetString(quickfix.Tag(10762),securitySubType)
+
+	message.Body.SetString(quickfix.Tag(54),side)
+	message.Body.SetString(quickfix.Tag(40),ordtype)
+	message.Body.SetString(quickfix.Tag(59),timeInForce)
+	message.Body.SetString(quickfix.Tag(55),"ES")
+
+	qty, _ := decimal.NewFromString(quantity)
+	message.Body.Set(field.NewOrderQty(qty, 2))
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "3":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "4":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "B":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "O":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "Q":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "W":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "J":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "S":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "T":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "V":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "X":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	}
+	message.Body.SetGroup(group)
+
+
 	SendMessage(message)
 }
 
