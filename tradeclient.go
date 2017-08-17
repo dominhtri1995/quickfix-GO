@@ -38,28 +38,24 @@ func (e TradeClient) ToAdmin(msg quickfix.Message, sessionID quickfix.SessionID)
 
 	messageType, _ := msg.Header.GetString(quickfix.Tag(35))
 
-	//if messageType == "A" {
-	//	fmt.Println(sessionID.TargetCompID)
-	//	switch sessionID.TargetCompID {
-	//	case "TTDEV180":
-	//		fmt.Println("setting password")
-	//		msg.Header.SetString(quickfix.Tag(96), "12345678")
-	//		t34, err := msg.Header.GetInt(quickfix.Tag(34))
-	//		if t34 == 1 && err == nil {
-	//			msg.Header.SetBool(quickfix.Tag(141), true) //Set reset sequence
-	//		}
-	//	case "TTDEV18P":
-	//		msg.Header.SetString(quickfix.Tag(96), "12345678")
-	//		//add more password for different users here with more case
-	//	}
-	//	msg.Header.SetInt(quickfix.Tag(95), 8)
-	//}
 	if messageType == "A" {
-		msg.Header.SetString(quickfix.Tag(96), "12345678")
-		msg.Header.SetInt(quickfix.Tag(95), 8)
-		t34, err := msg.Header.GetInt(quickfix.Tag(34))
-		if t34 == 1 && err == nil && sessionID.TargetCompID == "TTDEV18O" {
-			msg.Header.SetBool(quickfix.Tag(141), true) //Set reset sequence
+		fmt.Println(sessionID.TargetCompID)
+		switch sessionID.SenderCompID {
+		case "VENUSTECH":
+			msg.Header.SetString(quickfix.Tag(96), "12345678")
+			msg.Header.SetInt(quickfix.Tag(95), 8)
+			t34, err := msg.Header.GetInt(quickfix.Tag(34))
+			if t34 == 1 && err == nil{
+				msg.Header.SetBool(quickfix.Tag(141), true) //Set reset sequence
+			}
+		case "VENUSTECH3":
+			msg.Header.SetString(quickfix.Tag(96), "12345678")   //set password
+			msg.Header.SetInt(quickfix.Tag(95), 8)
+			t34, err := msg.Header.GetInt(quickfix.Tag(34))
+			if t34 == 1 && err == nil {
+				msg.Header.SetBool(quickfix.Tag(141), true) //Set reset sequence
+			}
+			//add more password for different users here with more case
 		}
 	}
 	return
