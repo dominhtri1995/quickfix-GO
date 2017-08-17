@@ -19,7 +19,7 @@ Loop:
 		}
 		switch action {
 		case "1":
-			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH3")
+			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH")
 			if uan.Status == "rejected" {
 				fmt.Printf("Error when getting UAN: %s", uan.Reason)
 				continue
@@ -29,7 +29,7 @@ Loop:
 				fmt.Printf("%s %s %s\n",uap.Side, uap.SecurityAltID,uap.Price)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "4", "50", "57.2","57", "IPE e-Brent", "ICE", "201709", "FUT", "1","0","0", "VENUSTECH3")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "4", "50", "57.2","57", "IPE e-Brent", "ICE", "201709", "FUT", "1","0","0", "VENUSTECH")
 			if ordStatus.Status == "ok" {
 				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -40,10 +40,13 @@ Loop:
 				}
 			}
 		case "3":
-			wo := TT_WorkingOrder("venustech", "VENUSTECH3")
+			wo := TT_WorkingOrder("venustech", "VENUSTECH")
 			if wo.Status != "rejected" {
 				for _, order := range wo.WorkingOrders {
 					fmt.Printf("%s \n", order.Symbol)
+					for _,u := range order.NoRelatedSymGroup{
+						fmt.Printf("%s %s %s\n",u.UnderlyingSymbol,u.UnderlyingSecurityExchange, u.UnderlyingSecurityAltID)
+					}
 				}
 			} else {
 				fmt.Printf("Error when getting Working Orders: %s", wo.Reason)
@@ -56,7 +59,7 @@ Loop:
 		case "5":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
 
-			ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[0].OrderID, "VENUSTECH3") // Cancel the first working order
+			ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[0].OrderID, "VENUSTECH") // Cancel the first working order
 			if ordStatus.Status == "ok" {
 				fmt.Printf("Order  %s %s at %s Cancelled Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
 			} else if ordStatus.Status == "rejected" {
@@ -68,7 +71,7 @@ Loop:
 		case "6":
 			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
 			for i := range wo.WorkingOrders {
-				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH3") // Cancel the first working order
+				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH") // Cancel the first working order
 				fmt.Printf("Status: %s \n", ordStatus.Status)
 			}
 		case "7":
@@ -148,8 +151,17 @@ Loop:
 			group = append(group, &u)
 			group= append(group, &u1)
 
-			QueryMultiLegNewOrder(xid.New().String(),"venustech","1","2","5","110","","0","CME","Calender",group,"VENUSTECH")
-
+			ordStatus:= TT_MultiLegNewOrder(xid.New().String(),"venustech","tri","1","2","5","-5500","","0","CME","Calendar",group,"VENUSTECH")
+			if ordStatus.Status == "ok"{
+				fmt.Println("Multi order placed successfully")
+				fmt.Println(ordStatus.SecuritySubType)
+				for _,u := range ordStatus.NoRelatedSymGroup{
+					fmt.Printf("%s %s %s\n",u.UnderlyingSymbol,u.UnderlyingSecurityExchange, u.UnderlyingSecurityAltID)
+				}
+			}else{
+				fmt.Println("Multileg order failed ")
+				fmt.Printf("Reason: %s \n",ordStatus.Reason)
+			}
 		default:
 			cmd := exec.Command("clear") //linux only
 			cmd.Stdout = os.Stdout

@@ -162,48 +162,67 @@ func QueryNewOrderSingle(id string, account string, mistroAccount string, side s
 	SendMessage(message)
 }
 
-func QueryMultiLegNewOrder(id string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string, exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup,sender string){
+func QueryMultiLegNewOrder(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string, exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup,sender string, c chan OrderConfirmation){
 
-	var groupTemplate []quickfix.GroupItem
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(311)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(309)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(310)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(308)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10456)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(318)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(313)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(314)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(18212)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(315)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(316)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(317)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(319)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(16624)))
-	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10566)))
+	var orderQuery OrderConfirmation
+	orderQuery.Id = id
+	orderQuery.channel = c
+	newOrderMap.Store(id, &orderQuery)
 
-	group := quickfix.NewRepeatingGroup(quickfix.Tag(146),groupTemplate)
+	group := getUnderlyingInstrumentGroup()
 	for _,u := range underlyingInstrumentGroup{
 		newSym := group.Add()
-		newSym.SetString(quickfix.Tag(311),u.UnderlyingSymbol)
-		newSym.SetString(quickfix.Tag(310),u.UnderlyingSecurityType)
-		newSym.SetString(quickfix.Tag(308),u.UnderlyingSecurityExchange)
-		newSym.SetString(quickfix.Tag(313),u.UnderlyingMaturityMonthYear)
-		newSym.SetString(quickfix.Tag(319),u.RatioQty)
-		//newSym.SetString(quickfix.Tag(314),u.UnderlyingMaturityDay)
-		//newSym.SetString(quickfix.Tag(18212),u.UnderlyingContractTerm)
-		//newSym.SetString(quickfix.Tag(315),u.UnderlyingPutOrCall)
-		//newSym.SetString(quickfix.Tag(316),u.UnderlyingStrikePrice)
-		//newSym.SetString(quickfix.Tag(317),u.UnderlyingOptAttribute)
-		newSym.SetString(quickfix.Tag(16624),u.LegSide)
+		if u.UnderlyingSymbol != ""{
+			newSym.SetString(quickfix.Tag(311),u.UnderlyingSymbol)
+		}
+		if u.UnderlyingSecurityType != ""{
+			newSym.SetString(quickfix.Tag(310),u.UnderlyingSecurityType)
+		}
+		if u.UnderlyingSecurityExchange != ""{
+			newSym.SetString(quickfix.Tag(308),u.UnderlyingSecurityExchange)
+		}
+		if u.UnderlyingMaturityMonthYear != "" {
+			newSym.SetString(quickfix.Tag(313),u.UnderlyingMaturityMonthYear)
+		}
+		if u.UnderlyingMaturityDay != ""{
+			newSym.SetString(quickfix.Tag(314),u.UnderlyingMaturityDay)
+		}
+		if u.RatioQty != ""{
+			newSym.SetString(quickfix.Tag(319),u.RatioQty)
+		}
+		if u.UnderlyingContractTerm != ""{
+			newSym.SetString(quickfix.Tag(18212),u.UnderlyingContractTerm)
+		}
+		if u.UnderlyingPutOrCall != ""{
+			newSym.SetString(quickfix.Tag(315),u.UnderlyingPutOrCall)
+		}
+		if u.UnderlyingStrikePrice != ""{
+			newSym.SetString(quickfix.Tag(316),u.UnderlyingStrikePrice)
+		}
+		if u.UnderlyingOptAttribute != ""{
+			newSym.SetString(quickfix.Tag(317),u.UnderlyingOptAttribute)
+		}
+		if u.LegSide != ""{
+			newSym.SetString(quickfix.Tag(16624),u.LegSide)
+		}
 		//newSym.SetString(quickfix.Tag(10566),u.LegPrice)
-		newSym.SetString(quickfix.Tag(309),u.UnderlyingSecurityID)
-		newSym.SetString(quickfix.Tag(10456),u.UnderlyingSecurityAltID)
+		if u.UnderlyingSecurityID != ""{
+			newSym.SetString(quickfix.Tag(309),u.UnderlyingSecurityID)
+		}
+		if u.UnderlyingSecurityAltID != ""{
+			newSym.SetString(quickfix.Tag(10456),u.UnderlyingSecurityAltID)
+		}
 		newSym.SetString(quickfix.Tag(318),"USD")
 	}
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header, sender)
 	message.Body.SetString(quickfix.Tag(1),account)
+	message.Body.SetString(quickfix.Tag(50),mistroAccount)
+	message.Body.SetString(quickfix.Tag(16142),mistroAccount)
+	message.Body.SetString(quickfix.Tag(116),"OBO") //On behalf of
+	message.Body.SetString(quickfix.Tag(11028), "Y")
+
 	message.Header.SetString(quickfix.Tag(35),"D")
 	message.Body.SetString(quickfix.Tag(167),"MLEG")
 	message.Body.SetString(quickfix.Tag(207),exchange)
@@ -372,6 +391,124 @@ func QueryOrderCancelReplace(orderID string, newid string, account string, side 
 	SendMessage(message)
 
 }
+func QueryMultilegCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string,exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup, sender string, c chan OrderConfirmation){
+	var cancelOrderQuery OrderConfirmation
+	cancelOrderQuery.Id = newid
+	cancelOrderQuery.channel = c
+	cancelAndUpdateMap.Store(newid, &cancelOrderQuery)
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header, sender)
+	message.Header.Set(field.NewMsgType("G"))
+	message.Body.Set(field.NewOrderID(orderID))
+	message.Body.Set(field.NewClOrdID(newid))
+	message.Body.Set(field.NewTransactTime(time.Now()))
+
+	var ordType field.OrdTypeField
+	ordType.FIXString = quickfix.FIXString(ordtype)
+	message.Body.Set(ordType)
+
+	var sideField field.SideField
+	sideField.FIXString = quickfix.FIXString(side)
+	message.Body.Set(sideField)
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString("MLEG")
+	message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
+
+	var timeInForceField field.TimeInForceField
+	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
+	message.Body.Set(timeInForceField) //0 for day and 1 for GTC
+
+	qty, _ := decimal.NewFromString(quantity)
+	message.Body.Set(field.NewOrderQty(qty, 2))
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "3":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "4":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "B":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "O":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "Q":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "W":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "J":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "S":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "T":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "V":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "X":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	}
+
+	//INStrument Block
+	message.Body.Set(field.NewSecurityExchange(exchange))
+	group := getUnderlyingInstrumentGroup()
+	for _,u := range underlyingInstrumentGroup{
+		newSym := group.Add()
+		if u.UnderlyingSymbol != ""{
+			newSym.SetString(quickfix.Tag(311),u.UnderlyingSymbol)
+		}
+		if u.UnderlyingSecurityType != ""{
+			newSym.SetString(quickfix.Tag(310),u.UnderlyingSecurityType)
+		}
+		if u.UnderlyingSecurityExchange != ""{
+			newSym.SetString(quickfix.Tag(308),u.UnderlyingSecurityExchange)
+		}
+		if u.UnderlyingMaturityMonthYear != "" {
+			newSym.SetString(quickfix.Tag(313),u.UnderlyingMaturityMonthYear)
+		}
+		if u.UnderlyingMaturityDay != ""{
+			newSym.SetString(quickfix.Tag(314),u.UnderlyingMaturityDay)
+		}
+		if u.RatioQty != ""{
+			newSym.SetString(quickfix.Tag(319),u.RatioQty)
+		}
+		if u.UnderlyingContractTerm != ""{
+			newSym.SetString(quickfix.Tag(18212),u.UnderlyingContractTerm)
+		}
+		if u.UnderlyingPutOrCall != ""{
+			newSym.SetString(quickfix.Tag(315),u.UnderlyingPutOrCall)
+		}
+		if u.UnderlyingStrikePrice != ""{
+			newSym.SetString(quickfix.Tag(316),u.UnderlyingStrikePrice)
+		}
+		if u.UnderlyingOptAttribute != ""{
+			newSym.SetString(quickfix.Tag(317),u.UnderlyingOptAttribute)
+		}
+		if u.LegSide != ""{
+			newSym.SetString(quickfix.Tag(16624),u.LegSide)
+		}
+		//newSym.SetString(quickfix.Tag(10566),u.LegPrice)
+		if u.UnderlyingSecurityID != ""{
+			newSym.SetString(quickfix.Tag(309),u.UnderlyingSecurityID)
+		}
+		if u.UnderlyingSecurityAltID != ""{
+			newSym.SetString(quickfix.Tag(10456),u.UnderlyingSecurityAltID)
+		}
+		newSym.SetString(quickfix.Tag(318),"USD")
+	}
+
+	message.Body.SetString(quickfix.Tag(10762),securitySubType)
+	message.Body.Set(field.NewAccount(account))
+	message.Body.SetGroup(group)
+	SendMessage(message)
+}
+
 func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string, sender string, c chan MarketDataReq) {
 
 	var md MarketDataReq
@@ -464,4 +601,26 @@ func queryHeaderPrice(h header, sender string) {
 	h.Set(field.NewSenderCompID(sender))
 	h.Set(field.NewTargetCompID("TTDEV18P"))
 	h.Set(field.NewBeginString("FIX.4.2"))
+}
+
+func getUnderlyingInstrumentGroup() *quickfix.RepeatingGroup{
+	var groupTemplate []quickfix.GroupItem
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(311)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(309)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(310)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(308)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10456)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(318)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(313)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(314)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(18212)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(315)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(316)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(317)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(319)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(16624)))
+	groupTemplate= append(groupTemplate, quickfix.GroupElement(quickfix.Tag(10566)))
+
+	group := quickfix.NewRepeatingGroup(quickfix.Tag(146),groupTemplate)
+	return group
 }

@@ -228,6 +228,37 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
 						order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 					}
+
+					if order.ProductType == "MLEG" {
+						order.SecuritySubType,_ =  msg.Body.GetString(quickfix.Tag(10762))
+						order.NoRelatedSymUnderlyingInstrument,_ = msg.Body.GetString(quickfix.Tag(146))
+						group:= getUnderlyingInstrumentGroup()
+						err:= msg.Body.GetGroup(group)
+						if err != nil {
+							fmt.Println("error reading underlying group");
+						}else{
+							for i:=0; i< group.Len();i++{
+								item:= group.Get(i)
+								var u UnderlyingInstrumentGroup
+								u.UnderlyingSecurityExchange,_ = item.GetString(quickfix.Tag(308))
+								u.UnderlyingSecurityType,_ = item.GetString(quickfix.Tag(310))
+								u.UnderlyingSymbol,_ =item.GetString(quickfix.Tag(311))
+								u.UnderlyingMaturityMonthYear,_ = item.GetString(quickfix.Tag(313))
+								u.UnderlyingMaturityDay,_ = item.GetString(quickfix.Tag(314))
+								u.UnderlyingContractTerm,_ = item.GetString(quickfix.Tag(18212))
+								u.UnderlyingPutOrCall,_ = item.GetString(quickfix.Tag(315))
+								u.UnderlyingStrikePrice,_ = item.GetString(quickfix.Tag(316))
+								u.UnderlyingOptAttribute,_ = item.GetString(quickfix.Tag(317))
+								u.LegSide ,_ = item.GetString(quickfix.Tag(16624))
+								u.LegPrice,_ = item.GetString(quickfix.Tag(10566))
+								u.RatioQty,_ = item.GetString(quickfix.Tag(319))
+								u.Side ,_ = item.GetString(quickfix.Tag(54))
+								u.UnderlyingSecurityID ,_= item.GetString(quickfix.Tag(309))
+								u.UnderlyingSecurityAltID,_ = item.GetString(quickfix.Tag(10456))
+								order.NoRelatedSymGroup= append(order.NoRelatedSymGroup, &u)
+							}
+						}
+					}
 					orderStatusRequest.WorkingOrders = append(orderStatusRequest.WorkingOrders, order)
 				}
 
@@ -492,9 +523,21 @@ func TT_Fills(id string, account string, sender string) (uan UAN) {
 	}
 	return uan
 }
-func TT_NewOrderSingle(id string, account string,mistroAccount string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
+func TT_NewOrderSingle(id string, account string, mistroAccount string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
 	QueryNewOrderSingle(id, account, mistroAccount, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, strikePrice, putOrCall, sender, c)
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
+	}
+	return ordStatus
+}
+func TT_MultiLegNewOrder(id string, account string, mistroAccount, side string, ordType string, quantity string, limitPri string, stopPri string, timeInForce string, exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup, sender string) (ordStatus OrderConfirmation) {
+	c := make(chan OrderConfirmation)
+	QueryMultiLegNewOrder(id, account, mistroAccount, side, ordType, quantity, limitPri, stopPri, timeInForce, exchange, securitySubType, underlyingInstrumentGroup, sender, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -532,6 +575,20 @@ func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderCo
 func TT_OrderCancelReplace(orderID string, newid string, account string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string, strikePrice string, putOrCall string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
 	QueryOrderCancelReplace(orderID, newid, account, side, ordType, quantity, limitPri, stopPri, symbol, exchange, maturity, productType, timeInForce, strikePrice, putOrCall, sender, c)
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
+	}
+	return ordStatus
+}
+
+func TT_MultiLegOrderCancelReplace(orderID string, newid string, account string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string,exchange string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup, sender string)(ordStatus OrderConfirmation){
+	c := make(chan OrderConfirmation)
+	QueryMultilegCancelReplace(orderID,newid,account,side,ordtype,quantity,limitPri,stopPri,timeInForce,exchange,securitySubType,underlyingInstrumentGroup,sender,c)
+
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -622,6 +679,36 @@ func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message)
 	if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
 		order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
 	}
+	if order.ProductType == "MLEG" {
+		order.SecuritySubType,_ =  msg.Body.GetString(quickfix.Tag(10762))
+		order.NoRelatedSymUnderlyingInstrument,_ = msg.Body.GetString(quickfix.Tag(146))
+		group:= getUnderlyingInstrumentGroup()
+		err:= msg.Body.GetGroup(group)
+		if err != nil {
+			fmt.Println("error reading underlying group");
+		}else{
+			for i:=0; i< group.Len();i++{
+				item:= group.Get(i)
+				var u UnderlyingInstrumentGroup
+				u.Side ,_ = item.GetString(quickfix.Tag(54))
+				u.UnderlyingSecurityExchange,_ = item.GetString(quickfix.Tag(308))
+				u.UnderlyingSecurityID ,_= item.GetString(quickfix.Tag(309))
+				u.UnderlyingSecurityAltID,_ = item.GetString(quickfix.Tag(10456))
+				u.UnderlyingSecurityType,_ = item.GetString(quickfix.Tag(310))
+				u.UnderlyingSymbol,_ =item.GetString(quickfix.Tag(311))
+				u.UnderlyingMaturityMonthYear,_ = item.GetString(quickfix.Tag(313))
+				u.UnderlyingMaturityDay,_ = item.GetString(quickfix.Tag(314))
+				u.UnderlyingContractTerm,_ = item.GetString(quickfix.Tag(18212))
+				u.UnderlyingPutOrCall,_ = item.GetString(quickfix.Tag(315))
+				u.UnderlyingStrikePrice,_ = item.GetString(quickfix.Tag(316))
+				u.UnderlyingOptAttribute,_ = item.GetString(quickfix.Tag(317))
+				u.LegSide ,_ = item.GetString(quickfix.Tag(16624))
+				u.LegPrice,_ = item.GetString(quickfix.Tag(10566))
+				u.RatioQty,_ = item.GetString(quickfix.Tag(319))
+				order.NoRelatedSymGroup= append(order.NoRelatedSymGroup, &u)
+			}
+		}
+	}
 }
 
 type TradeClient struct {
@@ -684,6 +771,10 @@ type WorkingOrder struct {
 	Text             string
 	PutOrCall        string //for option only
 	StrikePrice      string //for option only
+
+	SecuritySubType                  string //Multileg
+	NoRelatedSymUnderlyingInstrument string //Multileg
+	NoRelatedSymGroup []*UnderlyingInstrumentGroup
 }
 
 type OrderConfirmation struct {
@@ -707,6 +798,10 @@ type OrderConfirmation struct {
 	channel         chan OrderConfirmation
 	PutOrCall       string //for option only
 	StrikePrice     string //for option only
+
+	SecuritySubType                  string //Multileg
+	NoRelatedSymUnderlyingInstrument string //Multileg
+	NoRelatedSymGroup []*UnderlyingInstrumentGroup
 }
 
 type MarketDataReq struct {
@@ -776,21 +871,23 @@ type UnderlyingInstrumentGroup struct {
 	LegSide                     string
 	LegPrice                    string
 	RatioQty                    string
+	Side 						string //used for response
 }
-func NewUnderlyingInstrumentGroup()(*UnderlyingInstrumentGroup){
+
+func NewUnderlyingInstrumentGroup() (*UnderlyingInstrumentGroup) {
 	var u UnderlyingInstrumentGroup
-	u.UnderlyingSecurityExchange  =""
-	u.UnderlyingSecurityType      =""
-	u.UnderlyingSymbol            =""
-	u.UnderlyingMaturityMonthYear =""
-	u.UnderlyingMaturityDay       =""
-	u.UnderlyingContractTerm      =""
-	u.UnderlyingPutOrCall         =""
-	u.UnderlyingStrikePrice       =""
-	u.UnderlyingOptAttribute      =""
-	u.LegSide                     =""
-	u.LegPrice                    =""
-	u.RatioQty                    =""
+	u.UnderlyingSecurityExchange = ""
+	u.UnderlyingSecurityType = ""
+	u.UnderlyingSymbol = ""
+	u.UnderlyingMaturityMonthYear = ""
+	u.UnderlyingMaturityDay = ""
+	u.UnderlyingContractTerm = ""
+	u.UnderlyingPutOrCall = ""
+	u.UnderlyingStrikePrice = ""
+	u.UnderlyingOptAttribute = ""
+	u.LegSide = ""
+	u.LegPrice = ""
+	u.RatioQty = ""
 	return &u
 }
 
