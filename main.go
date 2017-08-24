@@ -29,7 +29,41 @@ Loop:
 				fmt.Printf("%s %s %s\n",uap.Side, uap.SecurityAltID,uap.Price)
 			}
 		case "2":
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "4", "50", "57.2","57", "IPE e-Brent", "ICE", "201709", "FUT", "1","0","0", "VENUSTECH")
+			scanner := bufio.NewScanner(os.Stdin)
+
+			fmt.Print("Side: ")
+			scanner.Scan()
+			side := scanner.Text()
+
+			fmt.Print("Order type: ")
+			scanner.Scan()
+			ordType:= scanner.Text()
+
+			fmt.Print("Quantity: ")
+			scanner.Scan()
+			qty:= scanner.Text()
+
+			fmt.Print("Limit Price: ")
+			scanner.Scan()
+			limitprice := scanner.Text()
+
+			fmt.Print("Stop Price: ")
+			scanner.Scan()
+			stopprice:= scanner.Text()
+
+			fmt.Print("Symbol: ")
+			scanner.Scan()
+			symbol:= scanner.Text()
+
+			fmt.Print("Exchange: ")
+			scanner.Scan()
+			exchange := scanner.Text()
+
+			fmt.Print("Maturity: ")
+			scanner.Scan()
+			maturiy := scanner.Text()
+
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustechb2a","tri", side, ordType, qty, limitprice,stopprice, symbol, exchange, maturiy, "FUT", "1","0","0", "B2","VENUSTECHMB","DTSMBOR52O")
 			if ordStatus.Status == "ok" {
 				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -69,17 +103,17 @@ Loop:
 				}
 			}
 		case "6":
-			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
+			wo := TT_WorkingOrder("venustech", "VENUSTECH") // get all working order
 			for i := range wo.WorkingOrders {
 				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH") // Cancel the first working order
 				fmt.Printf("Status: %s \n", ordStatus.Status)
 			}
 		case "7":
-			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
+			wo := TT_WorkingOrder("venustech", "VENUSTECH") // get all working order
 			// Replace/Edit the first working order
 			order := wo.WorkingOrders[0]
 			//Change Quantity of that working order to 962
-			ordStatus := TT_OrderCancelReplace(order.OrderID, xid.New().String(), wo.Account, order.SideNum, order.OrdType, "962", order.Price,order.StopPrice, order.Symbol, order.Exchange, order.ProductMaturity, order.ProductType, order.TimeInForce,order.StrikePrice,order.PutOrCall, "VENUSTECH3")
+			ordStatus := TT_OrderCancelReplace(order.OrderID, xid.New().String(), wo.Account, order.SideNum, order.OrdType, "962", order.Price,order.StopPrice, order.Symbol, order.Exchange, order.ProductMaturity, order.ProductType, order.TimeInForce,order.StrikePrice,order.PutOrCall, "VENUSTECH")
 			if ordStatus.Status == "ok" {
 				fmt.Printf("Order Replaced Successfully: %s %s at %s \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
 			} else if ordStatus.Status == "rejected" {
@@ -90,7 +124,7 @@ Loop:
 			}
 		case "8":
 			//pass in parameters for filter, pass "" if do not want to use that criteria  //00A0IR00BZZ
-			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"BZO","CME","","OPT","VENUSTECH3")
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"GE","CME","","OPT","VENUSTECH")
 			if sdr.Status =="ok"{
 				for _,security := range sdr.SecurityList {
 					fmt.Printf("%s with TickValue: %f and TickSize %f %s %s %s\n",security.Symbol,security.TickValue,security.TickSize,security.SecurityAltID,security.ProductMaturity, security.Exchange)
@@ -100,7 +134,7 @@ Loop:
 				fmt.Printf("Reason: %s \n",sdr.Reason)
 			}
 		case "9":
-			uan:= TT_Fills(xid.New().String(),"venustech3","VENUSTECH3")
+			uan:= TT_Fills(xid.New().String(),"venustech3","VENUSTECH")
 			if uan.Status == "ok"{
 				fmt.Println("Get Fill ok")
 				for _, uap := range uan.Reports {
@@ -115,7 +149,7 @@ Loop:
 		case "19"://test ordertype
 			numbers := []string{"5","B","J","O","Q","R"}
 			for _,n := range numbers{
-				ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "2", "50", "247825","2500222", "ES", "CME", "201709", "FUT", n,"0","0", "VENUSTECH3")
+				ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", "1", "2", "50", "247825","2500222", "ES", "CME", "201709", "FUT", n,"0","0", "B1","VENUSTECH","TTDEV18O")
 				if ordStatus.Status == "ok" {
 					fmt.Println(ordStatus.Id)
 					fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -162,6 +196,9 @@ Loop:
 				fmt.Println("Multileg order failed ")
 				fmt.Printf("Reason: %s \n",ordStatus.Reason)
 			}
+		case "21":
+			var group []*UnderlyingInstrumentGroup
+			TT_MultiLegNewOrderAltid(xid.New().String(),"venustech","tri","1","2","5","2277","","0","CME","HOCL","CL:C1 HO-CL U7","Crack",group,"VENUSTECH")
 		default:
 			cmd := exec.Command("clear") //linux only
 			cmd.Stdout = os.Stdout

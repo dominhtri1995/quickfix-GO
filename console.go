@@ -76,7 +76,7 @@ func QueryFills(id string, account string, sender string, c chan UAN) (err error
 	return
 }
 
-func QueryNewOrderSingle(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, sender string,  c chan OrderConfirmation) {
+func QueryNewOrderSingle(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, maturity string, productType string, timeInForce string,strikePrice string, putOrCall string, broker string, sender string, target string,  c chan OrderConfirmation) {
 
 	var orderQuery OrderConfirmation
 	orderQuery.Id = id
@@ -97,9 +97,6 @@ func QueryNewOrderSingle(id string, account string, mistroAccount string, side s
 	var timeInForceField field.TimeInForceField
 	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
 	order.Set(timeInForceField) //0 for day and 1 for GTC
-	if timeInForce == "6"{
-		order.SetExpireDate("20170810")
-	}
 
 	qty, _ := decimal.NewFromString(quantity)
 	order.SetOrderQty(qty, 2)
@@ -152,13 +149,100 @@ func QueryNewOrderSingle(id string, account string, mistroAccount string, side s
 	}
 
 	order.SetAccount(account)
-	order.SetString(quickfix.Tag(50),mistroAccount)
+	//order.SetString(quickfix.Tag(50),mistroAccount)
 	order.SetString(quickfix.Tag(16142),mistroAccount)
-	order.SetString(quickfix.Tag(116),"OBO") //On behalf of
+	order.SetString(quickfix.Tag(116),"tri") //On behalf of
 	order.SetString(quickfix.Tag(11028), "Y")
+	order.SetString(quickfix.Tag(18220),broker)
+	order.SetString(quickfix.Tag(47),"A")
+	order.SetString(quickfix.Tag(204),"0")
 
 	message := order.ToMessage()
-	queryHeader(message.Header, sender)
+	if target != ""{
+		queryHeaderWithTarget(message.Header, sender,target)
+	}else {
+		queryHeader(message.Header,sender)
+	}
+	SendMessage(message)
+}
+
+func QueryNewOrderSingleAltID(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, securityAltID string, productType string, timeInForce string, broker string, sender string, target string,  c chan OrderConfirmation) {
+
+	var orderQuery OrderConfirmation
+	orderQuery.Id = id
+	orderQuery.channel = c
+	newOrderMap.Store(id, &orderQuery)
+
+	var ordType field.OrdTypeField
+	ordType.FIXString = quickfix.FIXString(ordtype)
+	var sideField field.SideField
+	sideField.FIXString = quickfix.FIXString(side)
+
+	order := fix42nos.New(field.NewClOrdID(id), field.NewHandlInst("1"), field.NewSymbol(symbol), sideField, field.NewTransactTime(time.Now()), ordType)
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	order.Set(productTypeField)
+
+	var timeInForceField field.TimeInForceField
+	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
+	order.Set(timeInForceField) //0 for day and 1 for GTC
+
+
+	qty, _ := decimal.NewFromString(quantity)
+	order.SetOrderQty(qty, 2)
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		order.SetPrice(limitPrice, 2)
+	case "3":
+		order.SetStopPx(stopPrice, 2)
+	case "4":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "B":
+		order.SetPrice(limitPrice, 2)
+	case "O":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "Q":
+		order.SetPrice(limitPrice, 2)
+	case "W":
+		order.SetPrice(limitPrice, 2)
+		order.SetStopPx(stopPrice, 2)
+	case "J":
+		order.SetStopPx(stopPrice, 2)
+	case "S":
+		order.SetStopPx(stopPrice, 2)
+	case "T":
+		order.SetStopPx(stopPrice, 2)
+	case "V":
+		order.SetStopPx(stopPrice, 2)
+	case "X":
+		order.SetStopPx(stopPrice, 2)
+	}
+
+	//INStrument Block
+	order.SetSecurityExchange(exchange)
+	order.SetString(quickfix.Tag(10455),securityAltID) // SecurityAlt ID
+
+	order.SetAccount(account)
+	//order.SetString(quickfix.Tag(50),mistroAccount)
+	order.SetString(quickfix.Tag(16142),mistroAccount)
+	order.SetString(quickfix.Tag(116),"tri") //On behalf of
+	order.SetString(quickfix.Tag(11028), "Y")
+	order.SetString(quickfix.Tag(18220),broker)
+	order.SetString(quickfix.Tag(47),"A")
+	order.SetString(quickfix.Tag(204),"0")
+
+	message := order.ToMessage()
+	if target != ""{
+		queryHeaderWithTarget(message.Header, sender,target)
+	}else {
+		queryHeader(message.Header,sender)
+	}
 	SendMessage(message)
 }
 
@@ -218,7 +302,7 @@ func QueryMultiLegNewOrder(id string, account string, mistroAccount string, side
 	message := quickfix.NewMessage()
 	queryHeader(message.Header, sender)
 	message.Body.SetString(quickfix.Tag(1),account)
-	message.Body.SetString(quickfix.Tag(50),mistroAccount)
+	//message.Body.SetString(quickfix.Tag(50),mistroAccount)
 	message.Body.SetString(quickfix.Tag(16142),mistroAccount)
 	message.Body.SetString(quickfix.Tag(116),"OBO") //On behalf of
 	message.Body.SetString(quickfix.Tag(11028), "Y")
@@ -226,7 +310,6 @@ func QueryMultiLegNewOrder(id string, account string, mistroAccount string, side
 	message.Header.SetString(quickfix.Tag(35),"D")
 	message.Body.SetString(quickfix.Tag(167),"MLEG")
 	message.Body.SetString(quickfix.Tag(207),exchange)
-	message.Body.SetString(quickfix.Tag(18203),"CME")
 
 	message.Body.SetString(quickfix.Tag(11),id)
 	message.Body.SetString(quickfix.Tag(10762),securitySubType)
@@ -234,7 +317,120 @@ func QueryMultiLegNewOrder(id string, account string, mistroAccount string, side
 	message.Body.SetString(quickfix.Tag(54),side)
 	message.Body.SetString(quickfix.Tag(40),ordtype)
 	message.Body.SetString(quickfix.Tag(59),timeInForce)
-	message.Body.SetString(quickfix.Tag(55),"ES")
+
+	qty, _ := decimal.NewFromString(quantity)
+	message.Body.Set(field.NewOrderQty(qty, 2))
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "3":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "4":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "B":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "O":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "Q":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "W":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "J":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "S":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "T":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "V":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "X":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	}
+	message.Body.SetGroup(group)
+
+
+	SendMessage(message)
+}
+
+func QueryMultiLegNewOrderAltID(id string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, timeInForce string, exchange string,symbol string, securityAltID string, securitySubType string, underlyingInstrumentGroup []*UnderlyingInstrumentGroup,sender string, c chan OrderConfirmation){
+
+	var orderQuery OrderConfirmation
+	orderQuery.Id = id
+	orderQuery.channel = c
+	newOrderMap.Store(id, &orderQuery)
+
+	group := getUnderlyingInstrumentGroup()
+	for _,u := range underlyingInstrumentGroup{
+		newSym := group.Add()
+		if u.UnderlyingSymbol != ""{
+			newSym.SetString(quickfix.Tag(311),u.UnderlyingSymbol)
+		}
+		if u.UnderlyingSecurityType != ""{
+			newSym.SetString(quickfix.Tag(310),u.UnderlyingSecurityType)
+		}
+		if u.UnderlyingSecurityExchange != ""{
+			newSym.SetString(quickfix.Tag(308),u.UnderlyingSecurityExchange)
+		}
+		if u.UnderlyingMaturityMonthYear != "" {
+			newSym.SetString(quickfix.Tag(313),u.UnderlyingMaturityMonthYear)
+		}
+		if u.UnderlyingMaturityDay != ""{
+			newSym.SetString(quickfix.Tag(314),u.UnderlyingMaturityDay)
+		}
+		if u.RatioQty != ""{
+			newSym.SetString(quickfix.Tag(319),u.RatioQty)
+		}
+		if u.UnderlyingContractTerm != ""{
+			newSym.SetString(quickfix.Tag(18212),u.UnderlyingContractTerm)
+		}
+		if u.UnderlyingPutOrCall != ""{
+			newSym.SetString(quickfix.Tag(315),u.UnderlyingPutOrCall)
+		}
+		if u.UnderlyingStrikePrice != ""{
+			newSym.SetString(quickfix.Tag(316),u.UnderlyingStrikePrice)
+		}
+		if u.UnderlyingOptAttribute != ""{
+			newSym.SetString(quickfix.Tag(317),u.UnderlyingOptAttribute)
+		}
+		if u.LegSide != ""{
+			newSym.SetString(quickfix.Tag(16624),u.LegSide)
+		}
+		//newSym.SetString(quickfix.Tag(10566),u.LegPrice)
+		if u.UnderlyingSecurityID != ""{
+			newSym.SetString(quickfix.Tag(309),u.UnderlyingSecurityID)
+		}
+		if u.UnderlyingSecurityAltID != ""{
+			newSym.SetString(quickfix.Tag(10456),u.UnderlyingSecurityAltID)
+		}
+		newSym.SetString(quickfix.Tag(318),"USD")
+	}
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header, sender)
+	message.Body.SetString(quickfix.Tag(1),account)
+	//message.Body.SetString(quickfix.Tag(50),mistroAccount)
+	message.Body.SetString(quickfix.Tag(16142),mistroAccount)
+	//message.Body.SetString(quickfix.Tag(116),"OBO") //On behalf of
+	message.Body.SetString(quickfix.Tag(11028), "Y")
+
+	message.Header.SetString(quickfix.Tag(35),"D")
+	message.Body.SetString(quickfix.Tag(167),"MLEG")
+	message.Body.SetString(quickfix.Tag(207),exchange)
+
+	message.Body.SetString(quickfix.Tag(11),id)
+	message.Body.SetString(quickfix.Tag(10762),securitySubType)
+
+	message.Body.SetString(quickfix.Tag(54),side)
+	message.Body.SetString(quickfix.Tag(40),ordtype)
+	message.Body.SetString(quickfix.Tag(59),timeInForce)
+	message.Body.SetString(quickfix.Tag(55),symbol)
+	message.Body.SetString(quickfix.Tag(10455),securityAltID)
 
 	qty, _ := decimal.NewFromString(quantity)
 	message.Body.Set(field.NewOrderQty(qty, 2))
@@ -600,6 +796,12 @@ func queryHeader(h header, sender string) {
 func queryHeaderPrice(h header, sender string) {
 	h.Set(field.NewSenderCompID(sender))
 	h.Set(field.NewTargetCompID("TTDEV18P"))
+	h.Set(field.NewBeginString("FIX.4.2"))
+}
+
+func queryHeaderWithTarget(h header, sender string, target string) {
+	h.Set(field.NewSenderCompID(sender))
+	h.Set(field.NewTargetCompID(target))
 	h.Set(field.NewBeginString("FIX.4.2"))
 }
 
