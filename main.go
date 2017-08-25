@@ -63,7 +63,7 @@ Loop:
 			scanner.Scan()
 			maturiy := scanner.Text()
 
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", side, ordType, qty, limitprice,stopprice, symbol, exchange, maturiy, "FUT", "1","0","0", "B1","VENUSTECH3","TTDEV18O")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech3","tri", side, ordType, qty, limitprice,stopprice, symbol, exchange, maturiy, "FUT", "1","0","0", "B1","VENUSTECH3","TTDEV18O")
 			if ordStatus.Status == "ok" {
 				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)

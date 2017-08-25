@@ -581,10 +581,9 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 	if time.Now().Sub(timeOld).Minutes() > 60 {
 		c := make(chan UAN)
 		QueryPAndLSOD(id, sender, c) // Get SOD report for position upto today
-		companyMap.positionUpdateTimeMap.Store(sender, time.Now())
 		select {
 		case <-c:
-
+			companyMap.positionUpdateTimeMap.Store(sender, time.Now())
 		case <-getSpecificTimeOutChan(20):
 		}
 	}
@@ -603,6 +602,7 @@ func TT_PAndLSOD(id string, account string, accountGroup string, sender string) 
 			uan.Reports = append(uan.Reports, *uap)
 		}
 	}
+	uan.Count = len(uan.Reports)
 
 	return uan
 }
@@ -685,6 +685,7 @@ func TT_WorkingOrder(account string, sender string) (wo OrderStatusReq) {
 			wo.WorkingOrders = append(wo.WorkingOrders, *t)
 		}
 	}
+	wo.Count = len(wo.WorkingOrders)
 	return
 }
 func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderConfirmation) {
