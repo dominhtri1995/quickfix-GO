@@ -13,7 +13,6 @@ import (
 	"golang.org/x/sync/syncmap"
 	"sync"
 	"encoding/json"
-	"github.com/rs/xid"
 )
 
 func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
@@ -21,13 +20,12 @@ func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
 }
 func (e TradeClient) OnLogon(sessionID quickfix.SessionID) {
 	fmt.Printf(" %s  Session created !! Ready to rock and roll\n", sessionID.TargetCompID)
-	if connectionHealth  ==false{
+	if connectionHealth == false {
 		fmt.Println("requesting working order")
 		QueryWorkingOrder(sessionID.SenderCompID)
-		connectionHealth= true
+		connectionHealth = true
 	}
-	QueryPAndLSOD(xid.New().String(),sessionID.SenderCompID,nil)
-	companyMap.positionUpdateTimeMap.Store(sessionID.SenderCompID,time.Now())
+	companyMap.positionUpdateTimeMap.Store(sessionID.SenderCompID,0)
 	return
 }
 func (e TradeClient) OnLogout(sessionID quickfix.SessionID) {
@@ -434,7 +432,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			fmt.Println(len(uan.Reports))
 			fmt.Println(uan.Count)
 			if len(uan.Reports) == uan.Count {
-				if posReqType == "4"  {
+				if posReqType == "4" {
 					companyName, _ := msg.Header.GetString(quickfix.Tag(56))
 					var positionList ConcurrentSlice
 					for j := 0; j < len(uan.Reports); j++ {
@@ -534,7 +532,7 @@ var connectionHealth bool
 
 func StartQuickFix() {
 	flag.Parse()
-	connectionHealth= true
+	connectionHealth = true
 	cfgFileName := path.Join("config", "tradeclient.cfg")
 	if flag.NArg() > 0 {
 		cfgFileName = flag.Arg(0)
@@ -578,27 +576,27 @@ func StartQuickFix() {
  */
 func TT_PAndLSOD(id string, account string, accountGroup string, sender string) (uan UAN) {
 
-	timeTemp,ok := companyMap.positionUpdateTimeMap.Load(sender)
-	timeOld,_ := timeTemp.(time.Time)
-	if time.Now().Sub(timeOld).Minutes() > 1{
+	timeTemp, ok := companyMap.positionUpdateTimeMap.Load(sender)
+	timeOld, _ := timeTemp.(time.Time)
+	if time.Now().Sub(timeOld).Minutes() > 60 {
 		c := make(chan UAN)
 		QueryPAndLSOD(id, sender, c) // Get SOD report for position upto today
-		companyMap.positionUpdateTimeMap.Store(sender,time.Now())
+		companyMap.positionUpdateTimeMap.Store(sender, time.Now())
 		select {
-		case uan = <-c:
+		case <-c:
 
-		case <-getTimeOutChan():
+		case <-getSpecificTimeOutChan(20):
 		}
 	}
 	temp, ok := companyMap.CompanyPositionMap.Load(sender)
-	if !ok{
+	if !ok {
 		uan.Status = "rejected"
 		uan.Reason = "Wrong Account"
 		return uan
 	}
-	uan.Status ="ok"
+	uan.Status = "ok"
 	uan.AccountGroup = accountGroup
-	slice,_ := temp.(*ConcurrentSlice)
+	slice, _ := temp.(*ConcurrentSlice)
 	for item := range slice.Iter() {
 		uap, _ := item.Value.(*UAPreport)
 		if uap.AccountGroup == accountGroup {
@@ -758,6 +756,14 @@ func getTimeOutChan() chan bool {
 	timeout := make(chan bool, 1)
 	go func() {
 		time.Sleep(60 * time.Second)
+		timeout <- true
+	}()
+	return timeout
+}
+func getSpecificTimeOutChan(sec time.Duration) chan bool {
+	timeout := make(chan bool, 1)
+	go func() {
+		time.Sleep(sec * time.Second)
 		timeout <- true
 	}()
 	return timeout
