@@ -104,6 +104,15 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order                 //Send data back to Channel
 					newOrderMap.Delete(clOrdID)             // Remove Order Status request from list
 				}
+				//Update working order
+				companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+				temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+				workingOrderList := temp.(*ConcurrentSlice)
+				var wo WorkingOrder
+				extractInfoERWorkingOrder(&wo, msg)
+				workingOrderList.append(&wo)
+				fmt.Println("added working order for ", wo.Account)
+
 			case execType == string(enum.ExecType_REJECTED):
 				//rejected
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
@@ -127,6 +136,7 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 				}
 			case execType == string(enum.ExecType_CANCELED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
+				orderID, _ := msg.Body.GetString(quickfix.Tag(37))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
 					order.Status = "ok"
@@ -135,8 +145,20 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
 				}
+				//Update working order
+				companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+				temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+				workingOrderList := temp.(*ConcurrentSlice)
+				for item := range workingOrderList.Iter() {
+					wo, _ := item.Value.(*WorkingOrder)
+					if orderID == wo.OrderID {
+						workingOrderList.remove(item.Index)
+					}
+				}
+
 			case execType == string(enum.ExecType_REPLACED):
 				clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
+				orderID, _ := msg.Body.GetString(quickfix.Tag(37))
 				if order, ok := cancelAndUpdateMap.Load(clOrdID); ok && err == nil {
 					order, _ := order.(*OrderConfirmation)
 					order.Status = "ok"
@@ -144,6 +166,33 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					extractInfoExcecutionReport(order, msg)
 					order.channel <- *order
 					cancelAndUpdateMap.Delete(clOrdID)
+				}
+				//Update working order
+				companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+				temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+				workingOrderList := temp.(*ConcurrentSlice)
+				var newWorkingOrder WorkingOrder
+				extractInfoERWorkingOrder(&newWorkingOrder, msg)
+				for item := range workingOrderList.Iter() {
+					wo, _ := item.Value.(*WorkingOrder)
+					if orderID == wo.OrderID {
+						workingOrderList.remove(item.Index)
+						workingOrderList.append(&newWorkingOrder)
+					}
+				}
+			case execType == string(enum.ExecType_RESTATED):
+				orderID, _ := msg.Body.GetString(quickfix.Tag(37))
+				companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+				temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+				workingOrderList := temp.(*ConcurrentSlice)
+				var newWorkingOrder WorkingOrder
+				extractInfoERWorkingOrder(&newWorkingOrder, msg)
+				for item := range workingOrderList.Iter() {
+					wo, _ := item.Value.(*WorkingOrder)
+					if orderID == wo.OrderID {
+						workingOrderList.remove(item.Index)
+						workingOrderList.append(&newWorkingOrder)
+					}
 				}
 			case execType == string(enum.ExecType_PARTIAL_FILL):
 				//Partially filled
@@ -164,6 +213,35 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					fmt.Println(string(notifiable))
 				} else {
 					fmt.Println("error in notification")
+				}
+
+				multiLegReportingType, _ := msg.Body.GetString(quickfix.Tag(442))
+				switch multiLegReportingType {
+				case "1": //Outright fill
+					companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+					temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+					workingOrderList := temp.(*ConcurrentSlice)
+					for item := range workingOrderList.Iter() {
+						wo, _ := item.Value.(*WorkingOrder)
+						if noti.OrderID == wo.OrderID {
+							wo.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) //leaves qty
+							wo.FilledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+							wo.AvgPx, _ = msg.Body.GetString(quickfix.Tag(6))
+						}
+					}
+				case "2": //Single leg fill
+				case "3": //entire multileg fill summary
+					companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+					temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+					workingOrderList := temp.(*ConcurrentSlice)
+					for item := range workingOrderList.Iter() {
+						wo, _ := item.Value.(*WorkingOrder)
+						if noti.OrderID == wo.OrderID {
+							wo.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) //leaves qty
+							wo.FilledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+							wo.AvgPx, _ = msg.Body.GetString(quickfix.Tag(6))
+						}
+					}
 				}
 
 			case execType == string(enum.ExecType_FILL):
@@ -187,93 +265,99 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 					fmt.Println("error in notification")
 				}
 
+				//Update working order
+				companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+				temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+				workingOrderList := temp.(*ConcurrentSlice)
+				for item := range workingOrderList.Iter() {
+					wo, _ := item.Value.(*WorkingOrder)
+					if noti.OrderID == wo.OrderID {
+						workingOrderList.remove(item.Index)
+					}
+				}
 			}
 		} else {
+			companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+			if _, ok := companyMap.CompanyWorkingOrderMap.Load(companyName); !ok {
+				fmt.Println("new stuff")
+				var workingOrderList ConcurrentSlice
+				companyMap.CompanyWorkingOrderMap.Store(companyName, &workingOrderList)
+			}
+			temp, _ := companyMap.CompanyWorkingOrderMap.Load(companyName)
+			workingOrderList := temp.(*ConcurrentSlice)
+
 			//Order Status request
-			account, err := msg.Body.GetString(quickfix.Tag(1))
-			numPosReports, _ := msg.Body.GetString(quickfix.Tag(16728))
-			for osr := range orderStatusRequestList.Iter() {
-				orderStatusRequest, _ := osr.Value.(*OrderStatusReq)
-				if err == nil && account == orderStatusRequest.Account { // GET book order not single order Status request
-					orderStatusRequest.Count, _ = strconv.Atoi(numPosReports)
-					if orderStatusRequest.Count == 0 {
-						orderStatusRequest.Status = "ok"
-						orderStatusRequest.channel <- *orderStatusRequest
-						orderStatusRequestList.remove(osr.Index)
-						return
-					}
+			//numPosReports, _ := msg.Body.GetString(quickfix.Tag(16728))
+			//if orderStatusRequest.Count == 0 {
+			//	orderStatusRequest.Status = "ok"
+			//	orderStatusRequest.channel <- *orderStatusRequest
+			//	orderStatusRequestList.remove(osr.Index)
+			//	return
+			//}
 
-					var order WorkingOrder
-					order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
-					order.Price, _ = msg.Body.GetString(quickfix.Tag(44))
-					order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
-					order.FilledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
-					order.OriginalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
-					order.OrdStatus, _ = msg.Body.GetString(quickfix.Tag(39))
-					order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
-					order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
-					order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
-					order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
-					order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
-					order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
-					order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
-					order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
-					order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
-					order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
-					order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
+			var order WorkingOrder
+			order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+			order.Price, _ = msg.Body.GetString(quickfix.Tag(44))
+			order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+			order.FilledQuantity, _ = msg.Body.GetString(quickfix.Tag(14))
+			order.OriginalQuantity, _ = msg.Body.GetString(quickfix.Tag(38))
+			order.OrdStatus, _ = msg.Body.GetString(quickfix.Tag(39))
+			order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+			order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+			order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+			order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
+			order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+			order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+			order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
+			order.Text, _ = msg.Body.GetString(quickfix.Tag(58))
+			order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+			order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
+			order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
+			order.Account, _ = msg.Body.GetString(quickfix.Tag(1))
+			order.AvgPx, _ = msg.Body.GetString(quickfix.Tag(6))
 
-					if order.SideNum == "1" {
-						order.Side = "Buy"
-					} else {
-						order.Side = "Sell"
-					}
-					order.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
-					if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
-						order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
-					}
+			if order.SideNum == "1" {
+				order.Side = "Buy"
+			} else {
+				order.Side = "Sell"
+			}
+			order.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+			if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
+				order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+			}
 
-					if order.ProductType == "MLEG" {
-						order.SecuritySubType, _ = msg.Body.GetString(quickfix.Tag(10762))
-						order.NoRelatedSymUnderlyingInstrument, _ = msg.Body.GetString(quickfix.Tag(146))
-						group := getUnderlyingInstrumentGroup()
-						err := msg.Body.GetGroup(group)
-						if err != nil {
-							fmt.Println("error reading underlying group");
-						} else {
-							for i := 0; i < group.Len(); i++ {
-								item := group.Get(i)
-								var u UnderlyingInstrumentGroup
-								u.UnderlyingSecurityExchange, _ = item.GetString(quickfix.Tag(308))
-								u.UnderlyingSecurityType, _ = item.GetString(quickfix.Tag(310))
-								u.UnderlyingSymbol, _ = item.GetString(quickfix.Tag(311))
-								u.UnderlyingMaturityMonthYear, _ = item.GetString(quickfix.Tag(313))
-								u.UnderlyingMaturityDay, _ = item.GetString(quickfix.Tag(314))
-								u.UnderlyingContractTerm, _ = item.GetString(quickfix.Tag(18212))
-								u.UnderlyingPutOrCall, _ = item.GetString(quickfix.Tag(315))
-								u.UnderlyingStrikePrice, _ = item.GetString(quickfix.Tag(316))
-								u.UnderlyingOptAttribute, _ = item.GetString(quickfix.Tag(317))
-								u.LegSide, _ = item.GetString(quickfix.Tag(16624))
-								u.LegPrice, _ = item.GetString(quickfix.Tag(10566))
-								u.RatioQty, _ = item.GetString(quickfix.Tag(319))
-								u.Side, _ = item.GetString(quickfix.Tag(54))
-								u.UnderlyingSecurityID, _ = item.GetString(quickfix.Tag(309))
-								u.UnderlyingSecurityAltID, _ = item.GetString(quickfix.Tag(10456))
-								order.NoRelatedSymGroup = append(order.NoRelatedSymGroup, &u)
-							}
-						}
+			if order.ProductType == "MLEG" {
+				order.SecuritySubType, _ = msg.Body.GetString(quickfix.Tag(10762))
+				order.NoRelatedSymUnderlyingInstrument, _ = msg.Body.GetString(quickfix.Tag(146))
+				group := getUnderlyingInstrumentGroup()
+				err := msg.Body.GetGroup(group)
+				if err != nil {
+					fmt.Println("error reading underlying group");
+				} else {
+					for i := 0; i < group.Len(); i++ {
+						item := group.Get(i)
+						var u UnderlyingInstrumentGroup
+						u.UnderlyingSecurityExchange, _ = item.GetString(quickfix.Tag(308))
+						u.UnderlyingSecurityType, _ = item.GetString(quickfix.Tag(310))
+						u.UnderlyingSymbol, _ = item.GetString(quickfix.Tag(311))
+						u.UnderlyingMaturityMonthYear, _ = item.GetString(quickfix.Tag(313))
+						u.UnderlyingMaturityDay, _ = item.GetString(quickfix.Tag(314))
+						u.UnderlyingContractTerm, _ = item.GetString(quickfix.Tag(18212))
+						u.UnderlyingPutOrCall, _ = item.GetString(quickfix.Tag(315))
+						u.UnderlyingStrikePrice, _ = item.GetString(quickfix.Tag(316))
+						u.UnderlyingOptAttribute, _ = item.GetString(quickfix.Tag(317))
+						u.LegSide, _ = item.GetString(quickfix.Tag(16624))
+						u.LegPrice, _ = item.GetString(quickfix.Tag(10566))
+						u.RatioQty, _ = item.GetString(quickfix.Tag(319))
+						u.Side, _ = item.GetString(quickfix.Tag(54))
+						u.UnderlyingSecurityID, _ = item.GetString(quickfix.Tag(309))
+						u.UnderlyingSecurityAltID, _ = item.GetString(quickfix.Tag(10456))
+						order.NoRelatedSymGroup = append(order.NoRelatedSymGroup, &u)
 					}
-					orderStatusRequest.WorkingOrders = append(orderStatusRequest.WorkingOrders, order)
-				}
-
-				if orderStatusRequest.Count == len(orderStatusRequest.WorkingOrders) {
-					// Receive all working orders
-					fmt.Printf("Receve all working orders : %d for Account %s \n", len(orderStatusRequest.WorkingOrders), orderStatusRequest.Account)
-					orderStatusRequest.Status = "ok"
-					orderStatusRequest.channel <- *orderStatusRequest
-					orderStatusRequestList.remove(osr.Index)
-					break
 				}
 			}
+			workingOrderList.append(&order)
+			fmt.Printf("Recevie Restated %d \n", len(workingOrderList.items))
 		}
 	case messageType == string(enum.MsgType_ORDER_CANCEL_REJECT):
 		clOrdID, err := msg.Body.GetString(quickfix.Tag(11))
@@ -435,6 +519,7 @@ var newOrderMap syncmap.Map
 var cancelAndUpdateMap syncmap.Map
 var marketDataRequestMap syncmap.Map
 var securityDefinitionMap syncmap.Map
+var companyMap UserManagement
 
 func StartQuickFix() {
 	flag.Parse()
@@ -539,7 +624,7 @@ func TT_NewOrderSingle(id string, account string, mistroAccount string, side str
 }
 func TT_NewOrderSingleAltID(id string, account string, mistroAccount string, side string, ordType string, quantity string, limitPri string, stopPri string, symbol string, exchange string, securityAltID string, productType string, timeInForce string, broker string, sender string, target string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
-	QueryNewOrderSingleAltID(id, account, mistroAccount, side, ordType, quantity, limitPri, stopPri, symbol, exchange,securityAltID, productType, timeInForce, broker, sender, target, c)
+	QueryNewOrderSingleAltID(id, account, mistroAccount, side, ordType, quantity, limitPri, stopPri, symbol, exchange, securityAltID, productType, timeInForce, broker, sender, target, c)
 	select {
 	case ordStatus = <-c:
 		return ordStatus
@@ -577,16 +662,21 @@ func TT_MultiLegNewOrderAltid(id string, account string, mistroAccount string, s
 }
 
 func TT_WorkingOrder(account string, sender string) (wo OrderStatusReq) {
-	c := make(chan OrderStatusReq)
-	QueryWorkingOrder(account, sender, c)
-	select {
-	case wo = <-c:
-		return wo
-	case <-getTimeOutChan():
+	wo.Status = "ok"
+	temp, ok := companyMap.CompanyWorkingOrderMap.Load(sender)
+	if !ok {
 		wo.Status = "rejected"
-		wo.Reason = "time out"
+		wo.Reason = "Wrong account"
+		return wo
 	}
-	return wo
+	slice, _ := temp.(*ConcurrentSlice)
+	for item := range slice.Iter() {
+		t, _ := item.Value.(*WorkingOrder)
+		if t.Account == account {
+			wo.WorkingOrders = append(wo.WorkingOrders, *t)
+		}
+	}
+	return
 }
 func TT_OrderCancel(id string, orderID string, sender string) (ordStatus OrderConfirmation) {
 	c := make(chan OrderConfirmation)
@@ -698,6 +788,66 @@ func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message)
 	order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
 	order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
 	order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
+	order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+	order.Account, _ = msg.Body.GetString(quickfix.Tag(1))
+
+	if order.SideNum == "1" {
+		order.Side = "Buy"
+	} else {
+		order.Side = "Sell"
+	}
+	if order.ProductType == "FUT" || order.ProductType == "OPT" || order.ProductType == "NRG" {
+		order.ProductMaturity, _ = msg.Body.GetString(quickfix.Tag(200))
+	}
+	if order.ProductType == "MLEG" {
+		order.SecuritySubType, _ = msg.Body.GetString(quickfix.Tag(10762))
+		order.NoRelatedSymUnderlyingInstrument, _ = msg.Body.GetString(quickfix.Tag(146))
+		group := getUnderlyingInstrumentGroup()
+		err := msg.Body.GetGroup(group)
+		if err != nil {
+			fmt.Println("error reading underlying group");
+		} else {
+			for i := 0; i < group.Len(); i++ {
+				item := group.Get(i)
+				var u UnderlyingInstrumentGroup
+				u.Side, _ = item.GetString(quickfix.Tag(54))
+				u.UnderlyingSecurityExchange, _ = item.GetString(quickfix.Tag(308))
+				u.UnderlyingSecurityID, _ = item.GetString(quickfix.Tag(309))
+				u.UnderlyingSecurityAltID, _ = item.GetString(quickfix.Tag(10456))
+				u.UnderlyingSecurityType, _ = item.GetString(quickfix.Tag(310))
+				u.UnderlyingSymbol, _ = item.GetString(quickfix.Tag(311))
+				u.UnderlyingMaturityMonthYear, _ = item.GetString(quickfix.Tag(313))
+				u.UnderlyingMaturityDay, _ = item.GetString(quickfix.Tag(314))
+				u.UnderlyingContractTerm, _ = item.GetString(quickfix.Tag(18212))
+				u.UnderlyingPutOrCall, _ = item.GetString(quickfix.Tag(315))
+				u.UnderlyingStrikePrice, _ = item.GetString(quickfix.Tag(316))
+				u.UnderlyingOptAttribute, _ = item.GetString(quickfix.Tag(317))
+				u.LegSide, _ = item.GetString(quickfix.Tag(16624))
+				u.LegPrice, _ = item.GetString(quickfix.Tag(10566))
+				u.RatioQty, _ = item.GetString(quickfix.Tag(319))
+				order.NoRelatedSymGroup = append(order.NoRelatedSymGroup, &u)
+			}
+		}
+	}
+}
+
+func extractInfoERWorkingOrder(order *WorkingOrder, msg quickfix.Message) {
+	order.Price, _ = msg.Body.GetString(quickfix.Tag(44)) //not available for market order
+	order.StopPrice, _ = msg.Body.GetString(quickfix.Tag(99))
+	order.Quantity, _ = msg.Body.GetString(quickfix.Tag(151)) // leaves qty
+	order.Symbol, _ = msg.Body.GetString(quickfix.Tag(55))
+	order.Exchange, _ = msg.Body.GetString(quickfix.Tag(207))
+	order.ProductType, _ = msg.Body.GetString(quickfix.Tag(167))
+	order.OrdType, _ = msg.Body.GetString(quickfix.Tag(40))
+	order.SideNum, _ = msg.Body.GetString(quickfix.Tag(54))
+	order.TimeInForce, _ = msg.Body.GetString(quickfix.Tag(59))
+	order.SecurityID, _ = msg.Body.GetString(quickfix.Tag(48))
+	order.SecurityAltID, _ = msg.Body.GetString(quickfix.Tag(10455))
+	order.StrikePrice, _ = msg.Body.GetString(quickfix.Tag(202))
+	order.PutOrCall, _ = msg.Body.GetString(quickfix.Tag(201))
+	order.OrderID, _ = msg.Body.GetString(quickfix.Tag(37))
+	order.Account, _ = msg.Body.GetString(quickfix.Tag(1))
+	order.AvgPx, _ = msg.Body.GetString(quickfix.Tag(6))
 
 	if order.SideNum == "1" {
 		order.Side = "Buy"
@@ -741,6 +891,10 @@ func extractInfoExcecutionReport(order *OrderConfirmation, msg quickfix.Message)
 
 type TradeClient struct {
 }
+type UserManagement struct {
+	CompanyWorkingOrderMap syncmap.Map
+	CompanyPositionMap     syncmap.Map
+}
 type UAN struct {
 	Id           string
 	Account      string
@@ -779,9 +933,11 @@ type OrderStatusReq struct {
 	Reason        string
 }
 type WorkingOrder struct {
+	Account          string
 	OrderID          string // Used to cancel order or request order Status later
 	Price            string
 	StopPrice        string
+	AvgPx            string
 	OrdStatus        string
 	Quantity         string
 	FilledQuantity   string
@@ -810,6 +966,7 @@ type OrderConfirmation struct {
 	Account         string
 	Status          string
 	Reason          string
+	OrderID         string
 	Symbol          string
 	ProductMaturity string
 	Exchange        string

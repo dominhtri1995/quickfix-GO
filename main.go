@@ -63,7 +63,7 @@ Loop:
 			scanner.Scan()
 			maturiy := scanner.Text()
 
-			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustechb2a","tri", side, ordType, qty, limitprice,stopprice, symbol, exchange, maturiy, "FUT", "1","0","0", "B2","VENUSTECHMB","DTSMBOR52O")
+			ordStatus := TT_NewOrderSingle(xid.New().String(), "venustech","tri", side, ordType, qty, limitprice,stopprice, symbol, exchange, maturiy, "FUT", "1","0","0", "B1","VENUSTECH3","TTDEV18O")
 			if ordStatus.Status == "ok" {
 				fmt.Println(ordStatus.Id)
 				fmt.Printf("Order %s %s at %s Placed Successfully \n", ordStatus.Side, ordStatus.Symbol, ordStatus.Price)
@@ -74,10 +74,14 @@ Loop:
 				}
 			}
 		case "3":
-			wo := TT_WorkingOrder("venustech", "VENUSTECH")
+			wo := TT_WorkingOrder("venustech2", "VENUSTECH9")
 			if wo.Status != "rejected" {
+				fmt.Printf("Number of order %d \n",len(wo.WorkingOrders))
 				for _, order := range wo.WorkingOrders {
 					fmt.Printf("%s \n", order.Symbol)
+					fmt.Printf("limit p: %s\n",order.Price)
+					fmt.Printf("qty: %s\n",order.Quantity)
+					fmt.Printf ("filled %s\n",order.FilledQuantity)
 					for _,u := range order.NoRelatedSymGroup{
 						fmt.Printf("%s %s %s\n",u.UnderlyingSymbol,u.UnderlyingSecurityExchange, u.UnderlyingSecurityAltID)
 					}
@@ -103,9 +107,9 @@ Loop:
 				}
 			}
 		case "6":
-			wo := TT_WorkingOrder("venustech", "VENUSTECH") // get all working order
+			wo := TT_WorkingOrder("venustech", "VENUSTECH3") // get all working order
 			for i := range wo.WorkingOrders {
-				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH") // Cancel the first working order
+				ordStatus := TT_OrderCancel(xid.New().String(), wo.WorkingOrders[i].OrderID, "VENUSTECH3") // Cancel the first working order
 				fmt.Printf("Status: %s \n", ordStatus.Status)
 			}
 		case "7":

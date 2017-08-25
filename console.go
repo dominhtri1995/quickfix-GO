@@ -153,9 +153,9 @@ func QueryNewOrderSingle(id string, account string, mistroAccount string, side s
 	order.SetString(quickfix.Tag(16142),mistroAccount)
 	order.SetString(quickfix.Tag(116),"tri") //On behalf of
 	order.SetString(quickfix.Tag(11028), "Y")
-	order.SetString(quickfix.Tag(18220),broker)
-	order.SetString(quickfix.Tag(47),"A")
-	order.SetString(quickfix.Tag(204),"0")
+	//order.SetString(quickfix.Tag(18220),broker)
+	//order.SetString(quickfix.Tag(47),"A")
+	//order.SetString(quickfix.Tag(204),"0")
 
 	message := order.ToMessage()
 	if target != ""{
