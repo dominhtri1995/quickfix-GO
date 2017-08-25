@@ -74,7 +74,7 @@ Loop:
 				}
 			}
 		case "3":
-			wo := TT_WorkingOrder("venustech2", "VENUSTECH9")
+			wo := TT_WorkingOrder("venustech2", "VENUSTECH3")
 			if wo.Status != "rejected" {
 				fmt.Printf("Number of order %d \n",len(wo.WorkingOrders))
 				for _, order := range wo.WorkingOrders {

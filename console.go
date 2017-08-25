@@ -472,17 +472,15 @@ func QueryMultiLegNewOrderAltID(id string, account string, mistroAccount string,
 	SendMessage(message)
 }
 
-func QueryWorkingOrder(account string, sender string, c chan OrderStatusReq) { //Order Status request
+func QueryWorkingOrder(sender string) { //Order Status request
 	var osq OrderStatusReq
-	osq.Account = account
-	osq.channel = c
 	osq.Count = 0
 	orderStatusRequestList.append(&osq)
 
 	message := quickfix.NewMessage()
 	queryHeader(message.Header, sender)
 	message.Header.Set(field.NewMsgType("H"))
-	message.Body.Set(field.NewAccount(account))
+	//message.Body.Set(field.NewAccount(account))
 
 	SendMessage(message)
 }

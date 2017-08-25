@@ -21,9 +21,15 @@ func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
 }
 func (e TradeClient) OnLogon(sessionID quickfix.SessionID) {
 	fmt.Printf(" %s  Session created !! Ready to rock and roll\n", sessionID.TargetCompID)
+	if connectionHealth  ==false{
+		fmt.Println("requesting working order")
+		QueryWorkingOrder(sessionID.SenderCompID)
+		connectionHealth= true
+	}
 	return
 }
 func (e TradeClient) OnLogout(sessionID quickfix.SessionID) {
+	connectionHealth = false
 	fmt.Printf(" %s  logged out!!!!!! It's Obama's fault !!! \n", sessionID.TargetCompID)
 	return
 }
@@ -39,7 +45,6 @@ func (e TradeClient) ToAdmin(msg quickfix.Message, sessionID quickfix.SessionID)
 	messageType, _ := msg.Header.GetString(quickfix.Tag(35))
 
 	if messageType == "A" {
-		fmt.Println(sessionID.TargetCompID)
 		switch sessionID.SenderCompID {
 		case "VENUSTECH":
 			msg.Header.SetString(quickfix.Tag(96), "12345678")
@@ -520,10 +525,11 @@ var cancelAndUpdateMap syncmap.Map
 var marketDataRequestMap syncmap.Map
 var securityDefinitionMap syncmap.Map
 var companyMap UserManagement
+var connectionHealth bool
 
 func StartQuickFix() {
 	flag.Parse()
-
+	connectionHealth= true
 	cfgFileName := path.Join("config", "tradeclient.cfg")
 	if flag.NArg() > 0 {
 		cfgFileName = flag.Arg(0)
