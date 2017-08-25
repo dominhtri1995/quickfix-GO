@@ -26,6 +26,8 @@ func (e TradeClient) OnLogon(sessionID quickfix.SessionID) {
 		QueryWorkingOrder(sessionID.SenderCompID)
 		connectionHealth= true
 	}
+	QueryPAndLSOD(xid.New().String(),sessionID.SenderCompID,nil)
+	companyMap.positionUpdateTimeMap.Store(sessionID.SenderCompID,time.Now())
 	return
 }
 func (e TradeClient) OnLogout(sessionID quickfix.SessionID) {
@@ -432,12 +434,15 @@ func (e TradeClient) FromApp(msg quickfix.Message, sessionID quickfix.SessionID)
 			fmt.Println(len(uan.Reports))
 			fmt.Println(uan.Count)
 			if len(uan.Reports) == uan.Count {
-				for j := 0; j < len(uan.Reports); j++ {
-					if posReqType == "4" && uan.AccountGroup != uan.Reports[j].AccountGroup {
-						uan.Reports = append(uan.Reports[:j], uan.Reports[j+1:]...)
-						j--
+				if posReqType == "4"  {
+					companyName, _ := msg.Header.GetString(quickfix.Tag(56))
+					var positionList ConcurrentSlice
+					for j := 0; j < len(uan.Reports); j++ {
+						positionList.append(&uan.Reports[j])
 					}
+					companyMap.CompanyPositionMap.Store(companyName, &positionList)
 				}
+
 				fmt.Println("Done UAP")
 				uan.Status = "ok"
 				uan.channel <- *uan // return the result to Channel
@@ -572,33 +577,33 @@ func StartQuickFix() {
 /*  For easy debug and maintain code with TT
  */
 func TT_PAndLSOD(id string, account string, accountGroup string, sender string) (uan UAN) {
-	c := make(chan UAN)
-	QueryPAndLSOD(id, accountGroup, sender, c) // Get SOD report for position upto today
-	select {
-	case uan = <-c:
 
-	case <-getTimeOutChan():
-		var uan UAN
-		uan.Status = "rejected"
-		uan.Reason = "time out"
-	}
+	timeTemp,ok := companyMap.positionUpdateTimeMap.Load(sender)
+	timeOld,_ := timeTemp.(time.Time)
+	if time.Now().Sub(timeOld).Minutes() > 1{
+		c := make(chan UAN)
+		QueryPAndLSOD(id, sender, c) // Get SOD report for position upto today
+		companyMap.positionUpdateTimeMap.Store(sender,time.Now())
+		select {
+		case uan = <-c:
 
-	var uan1 UAN
-	c1 := make(chan UAN)
-	QueryPAndLPos(xid.New().String(), account, sender, c1) // Get Position report for positions placed today
-	select {
-	case uan1 = <-c1:
-		if uan.Status != "rejected" {
-			uan.Reports = append(uan.Reports, uan1.Reports[0:]...)
-			uan.Count = len(uan.Reports)
-			uan.Account = uan1.Account
-			uan.Status = "ok"
+		case <-getTimeOutChan():
 		}
-	case <-getTimeOutChan():
-		fmt.Println("Time out Position")
-		var uan UAN
+	}
+	temp, ok := companyMap.CompanyPositionMap.Load(sender)
+	if !ok{
 		uan.Status = "rejected"
-		uan.Reason = "time out"
+		uan.Reason = "Wrong Account"
+		return uan
+	}
+	uan.Status ="ok"
+	uan.AccountGroup = accountGroup
+	slice,_ := temp.(*ConcurrentSlice)
+	for item := range slice.Iter() {
+		uap, _ := item.Value.(*UAPreport)
+		if uap.AccountGroup == accountGroup {
+			uan.Reports = append(uan.Reports, *uap)
+		}
 	}
 
 	return uan
@@ -900,6 +905,7 @@ type TradeClient struct {
 type UserManagement struct {
 	CompanyWorkingOrderMap syncmap.Map
 	CompanyPositionMap     syncmap.Map
+	positionUpdateTimeMap  syncmap.Map
 }
 type UAN struct {
 	Id           string

@@ -13,13 +13,12 @@ import (
 	fix42mdq "github.com/quickfixgo/quickfix/fix42/marketdatarequest"
 )
 
-func QueryPAndLSOD(id string, accountGroup string, sender string, c chan UAN) (err error) {
+func QueryPAndLSOD(id string,  sender string, c chan UAN) (err error) {
 	//UANS
 	var u UAN
 	u.Id = id
 	u.Count = 0
 	u.channel = c
-	u.AccountGroup = accountGroup
 
 	uanMap.Store(id, &u)
 

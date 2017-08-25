@@ -19,7 +19,7 @@ Loop:
 		}
 		switch action {
 		case "1":
-			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH")
+			uan := TT_PAndLSOD(xid.New().String(), "venustech", "TTORDFA224222", "VENUSTECH3")
 			if uan.Status == "rejected" {
 				fmt.Printf("Error when getting UAN: %s", uan.Reason)
 				continue
@@ -128,7 +128,7 @@ Loop:
 			}
 		case "8":
 			//pass in parameters for filter, pass "" if do not want to use that criteria  //00A0IR00BZZ
-			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"GE","CME","","OPT","VENUSTECH")
+			sdr := TT_QuerySecurityDefinitionRequest(xid.New().String(),"GE","CME","","OPT","VENUSTECH3")
 			if sdr.Status =="ok"{
 				for _,security := range sdr.SecurityList {
 					fmt.Printf("%s with TickValue: %f and TickSize %f %s %s %s\n",security.Symbol,security.TickValue,security.TickSize,security.SecurityAltID,security.ProductMaturity, security.Exchange)
@@ -138,7 +138,7 @@ Loop:
 				fmt.Printf("Reason: %s \n",sdr.Reason)
 			}
 		case "9":
-			uan:= TT_Fills(xid.New().String(),"venustech3","VENUSTECH")
+			uan:= TT_Fills(xid.New().String(),"venustech3","VENUSTECH3")
 			if uan.Status == "ok"{
 				fmt.Println("Get Fill ok")
 				for _, uap := range uan.Reports {
