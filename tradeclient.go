@@ -20,16 +20,18 @@ func (e TradeClient) OnCreate(sessionID quickfix.SessionID) {
 }
 func (e TradeClient) OnLogon(sessionID quickfix.SessionID) {
 	fmt.Printf(" %s  Session created !! Ready to rock and roll\n", sessionID.TargetCompID)
-	if connectionHealth == false {
+	if ConnectionHealth == false {
 		fmt.Println("requesting working order")
+		var workingOrderList ConcurrentSlice
+		companyMap.CompanyWorkingOrderMap.Store(sessionID.SenderCompID, &workingOrderList)
 		QueryWorkingOrder(sessionID.SenderCompID)
-		connectionHealth = true
+		ConnectionHealth = true
 	}
 	companyMap.positionUpdateTimeMap.Store(sessionID.SenderCompID,0)
 	return
 }
 func (e TradeClient) OnLogout(sessionID quickfix.SessionID) {
-	connectionHealth = false
+	ConnectionHealth = false
 	fmt.Printf(" %s  logged out!!!!!! It's Obama's fault !!! \n", sessionID.TargetCompID)
 	return
 }
@@ -528,11 +530,11 @@ var cancelAndUpdateMap syncmap.Map
 var marketDataRequestMap syncmap.Map
 var securityDefinitionMap syncmap.Map
 var companyMap UserManagement
-var connectionHealth bool
+var ConnectionHealth bool
 
 func StartQuickFix() {
 	flag.Parse()
-	connectionHealth = true
+	ConnectionHealth = true
 	cfgFileName := path.Join("config", "tradeclient.cfg")
 	if flag.NArg() > 0 {
 		cfgFileName = flag.Arg(0)

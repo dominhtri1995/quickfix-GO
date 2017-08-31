@@ -82,6 +82,7 @@ Loop:
 					fmt.Printf("limit p: %s\n",order.Price)
 					fmt.Printf("qty: %s\n",order.Quantity)
 					fmt.Printf ("filled %s\n",order.FilledQuantity)
+					fmt.Printf("orderId %s \n",order.OrderID)
 					for _,u := range order.NoRelatedSymGroup{
 						fmt.Printf("%s %s %s\n",u.UnderlyingSymbol,u.UnderlyingSecurityExchange, u.UnderlyingSecurityAltID)
 					}
