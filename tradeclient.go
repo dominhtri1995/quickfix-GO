@@ -727,6 +727,19 @@ func TT_MultiLegOrderCancelReplace(orderID string, newid string, account string,
 	return ordStatus
 }
 
+func TT_OrderCancelRepalceAltID(orderID string, newid string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, securityAltID string, productType string, timeInForce string, broker string, sender string, target string)(ordStatus OrderConfirmation)  {
+	c := make(chan OrderConfirmation)
+	QueryCancelUpdateAltID(orderID, newid, account, mistroAccount , side , ordtype , quantity , limitPri , stopPri , symbol , exchange , securityAltID , productType , timeInForce, broker, sender, target, c)
+	select {
+	case ordStatus = <-c:
+		return ordStatus
+	case <-getTimeOutChan():
+		ordStatus.Status = "rejected"
+		ordStatus.Reason = "time out"
+	}
+	return ordStatus
+}
+
 func TT_MarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string, sender string) (mdr MarketDataReq) {
 	c := make(chan MarketDataReq)
 	QueryMarketDataRequest(id, requestType, marketDepth, priceType, symbol, exchange, maturity, productType, sender, c)

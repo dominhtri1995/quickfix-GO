@@ -702,6 +702,81 @@ func QueryMultilegCancelReplace(orderID string, newid string, account string, si
 	SendMessage(message)
 }
 
+func QueryCancelUpdateAltID(orderID string, newid string, account string, mistroAccount string, side string, ordtype string, quantity string, limitPri string, stopPri string, symbol string, exchange string, securityAltID string, productType string, timeInForce string, broker string, sender string, target string,  c chan OrderConfirmation) {
+
+	var cancelOrderQuery OrderConfirmation
+	cancelOrderQuery.Id = newid
+	cancelOrderQuery.channel = c
+	cancelAndUpdateMap.Store(newid, &cancelOrderQuery)
+
+	message := quickfix.NewMessage()
+	queryHeader(message.Header, sender)
+	message.Header.Set(field.NewMsgType("G"))
+	message.Body.Set(field.NewOrderID(orderID))
+	message.Body.Set(field.NewClOrdID(newid))
+	message.Body.Set(field.NewTransactTime(time.Now()))
+
+	var ordType field.OrdTypeField
+	ordType.FIXString = quickfix.FIXString(ordtype)
+	message.Body.Set(ordType)
+
+	var sideField field.SideField
+	sideField.FIXString = quickfix.FIXString(side)
+	message.Body.Set(sideField)
+
+	var productTypeField field.SecurityTypeField
+	productTypeField.FIXString = quickfix.FIXString(productType)
+	message.Body.Set(productTypeField) // "FUT" for future and "OPT" for option
+
+	var timeInForceField field.TimeInForceField
+	timeInForceField.FIXString = quickfix.FIXString(timeInForce)
+	message.Body.Set(timeInForceField) //0 for day and 1 for GTC
+
+	qty, _ := decimal.NewFromString(quantity)
+	message.Body.Set(field.NewOrderQty(qty, 2))
+
+	limitPrice, _ := decimal.NewFromString(limitPri)
+	stopPrice, _ := decimal.NewFromString(stopPri)
+	switch ordtype {
+	case "2":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "3":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "4":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "B":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "O":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "Q":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+	case "W":
+		message.Body.Set(field.NewPrice(limitPrice,2))
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "J":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "S":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "T":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "V":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	case "X":
+		message.Body.Set(field.NewStopPx(stopPrice, 2))
+	}
+
+	//INStrument Block
+	message.Body.SetString(quickfix.Tag(207),exchange)
+	message.Body.SetString(quickfix.Tag(10455),securityAltID) // SecurityAlt ID
+	message.Body.SetString(quickfix.Tag(55),symbol)
+
+
+	message.Body.Set(field.NewAccount(account))
+	SendMessage(message)
+}
+
 func QueryMarketDataRequest(id string, requestType enum.SubscriptionRequestType, marketDepth int, priceType enum.MDEntryType, symbol string, exchange string, maturity string, productType string, sender string, c chan MarketDataReq) {
 
 	var md MarketDataReq
